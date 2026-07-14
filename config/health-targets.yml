@@ -1,0 +1,35 @@
+health:
+  connect-timeout: 2s
+  read-timeout: 3s
+
+  microservices:
+    - display-name: Database Service
+      service-name: eh-database-connector
+    - display-name: Dicom Receiver Service
+      service-name: eh-dicom-receiver
+    - display-name: Message Generator
+      service-name: eh-request-generator
+    - display-name: Lis Connector Service
+      service-name: eh-lis-connector
+    - display-name: Dicom Enricher Service
+      service-name: eh-dicom-enricher
+    - display-name: Export Service
+      service-name: eh-export-service
+    - display-name: Hl7 Connector Service
+      service-name: eh-hl7-connector
+    - display-name: Ibex Adapter Service
+      service-name: eh-ibex-adapter
+    - display-name: Email Service
+      service-name: eh-email-service
+    - display-name: Techcyte Adapter Service
+      service-name: eh-techcyte-adapter
+    - display-name: Delete Service
+      service-name: eh-delete-service
+
+  third-parties:
+    - name: Clinysis
+      url: 172.16.102.93
+    - name: IBEX
+      url: 10.12.37.36
+    - name: Synapse
+      url: 10.201.8.12

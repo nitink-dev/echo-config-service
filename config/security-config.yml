@@ -1,0 +1,209 @@
+server:
+  reactive:
+    session:
+      cookie:
+        name: SESSION
+        http-only: true
+        secure: true
+        same-site: None
+
+spring:
+  ldap:
+    urls:
+      - ldap://ehintad-001.nsdev.local:389
+      - ldap://ehintad-002.nsdev.local:389
+    base: DC=NSDev,DC=local
+    username: CN=Portal SVC,OU=Service-Accounts,DC=NSDev,DC=local
+    password: "${LDAP_SERVICE_USER_PASSWORD}"
+    base-environment:
+      com.sun.jndi.ldap.connect.timeout: "5000"
+      com.sun.jndi.ldap.read.timeout: "5000"
+      java.naming.referral: follow
+
+  session:
+    store-type: redis
+    timeout: 30m
+    redis:
+      namespace: login:sessions
+      flush-mode: on_save
+
+security:
+  ldap:
+    user-search:
+      # Users are in two OUs → we use subtree on base DN + filter
+      filter: (&(objectCategory=Person)(objectClass=User)(sAMAccountName={0}))
+      search-subtree: true
+    groups:
+      # Our groups (Administrator/Developer/Pathologist) are all in Pathology_Users OU
+      base: OU=Pathology_Users
+      filter: (|(uniqueMember={0})(member={0})(memberUid={1}))
+      role-attribute: cn
+      search-subtree: true
+
+    timeouts:
+      connect: 5s
+      read: 5s
+
+    jndi-pool:
+      enabled: false
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
+
+  policies:
+    session:
+      rotate-after: 20m
+
+    super-scopes:
+      - platform.admin
+
+    ldap-to-app-role:
+      eh-admin-console-administrator: ROLE_ADMIN
+      eh-admin-console-developer: ROLE_DEVELOPER
+      eh-admin-console-pathologist: ROLE_PATHOLOGIST
+
+    role-to-scopes:
+      ROLE_ADMIN:
+        - platform.read
+        - platform.create
+        - platform.delete
+        - config.path-qa-store.update
+        - qa-slide.update
+        - scanner.update
+        - enrichment.tools.eh-lis-connector.update
+        - enrichment.tools.synapse.update
+
+      ROLE_DEVELOPER:
+        - platform.read
+        - platform.create
+        - platform.update
+        - platform.delete
+
+      ROLE_PATHOLOGIST:
+        - platform.read
+
+    routes:
+      rules:
+        # Public path
+        - pattern: /api/auth/login
+          methods: [ POST, OPTIONS ]
+          permitAll: true
+        - pattern: /api/auth/logout
+          methods: [ POST, OPTIONS ]
+          permitAll: true
+        - pattern: /actuator/health
+          methods: [ GET, OPTIONS ]
+          permitAll: true
+        - pattern: /api/health/status
+          methods: [ GET, OPTIONS ]
+          permitAll: true
+
+        # Auth Controller
+        - pattern: /api/auth/config
+          methods: [ GET]
+          requiredScopes: [ "auth.config.read","platform.read" ]
+
+        # ConfigurationController
+        - pattern: /api/config/**
+          methods: [ GET ]
+          requiredScopes: [ "config.read","platform.read" ]
+        - pattern: /api/config/**
+          methods: [ PATCH ]
+          requiredScopes: [ "config.update","platform.update" ]
+
+        # Path QA store
+        - pattern: /api/config/path-qa/dicom-store
+          methods: [ PATCH, PUT ]
+          requiredScopes: [ "config.path-qa-store.update","platform.update" ]
+
+        # EnrichmentToolController
+        - pattern: /api/enrichment/tools/**
+          methods: [ GET ]
+          requiredScopes: [ "enrichment.tools.read","platform.read" ]
+        - pattern: /api/enrichment/tools/eh-lis-connector
+          methods: [ PATCH, PUT ]
+          requiredScopes: [ "enrichment.tools.eh-lis-connector.update","platform.update" ]
+        - pattern: /api/enrichment/tools/synapse
+          methods: [ PATCH, PUT ]
+          requiredScopes: [ "enrichment.tools.synapse.update","platform.update" ]
+        - pattern: /api/enrichment/tools/**
+          methods: [ PATCH, PUT ]
+          requiredScopes: [ "enrichment.tools.update","platform.update" ]
+
+        # HospitalMetadataController
+        - pattern: /api/hospital-metadata/**
+          methods: [ GET ]
+          requiredScopes: [ "hospital.metadata.read","platform.read" ]
+
+        # QaSlideController
+        - pattern: /api/slides
+          methods: [ GET ]
+          requiredScopes: [ "qa-slides.read","platform.read" ]
+        - pattern: /api/slides/**
+          methods: [ GET ]
+          requiredScopes: [ "qa-slide.barcode.read","platform.read" ]
+        - pattern: /api/slides/**
+          methods: [ PATCH, PUT ]
+          requiredScopes: [ "qa-slide.update","platform.update" ]
+        - pattern: /api/slides/**
+          methods: [ POST ]
+          requiredScopes: [ "qa-slide.create","platform.create" ]
+        - pattern: /api/slides/**
+          methods: [ DELETE ]
+          requiredScopes: [ "qa-slide.delete","platform.delete" ]
+
+        # SlideAnalysisReportController
+        - pattern: /api/slide-analysis/device/**
+          methods: [ GET ]
+          requiredScopes: [ "slide-reports.device.read","platform.read" ]
+        - pattern: /api/slide-analysis/**
+          methods: [ GET ]
+          requiredScopes: [ "slide-reports.read","platform.read" ]
+
+        # SlideScannerController
+        - pattern: /api/scanners/datasets/dicomStores   # specific FIRST
+          methods: [ GET ]
+          requiredScopes: [ "dicom-store.read","platform.read" ]
+        - pattern: /api/scanners
+          methods: [ GET ]
+          requiredScopes: [ "scanners.read","platform.read" ]
+        - pattern: /api/scanners/**
+          methods: [ GET ]
+          requiredScopes: [ "scanner.device.read","scanner.reports.read","platform.read" ]
+        - pattern: /api/scanners
+          methods: [ POST ]
+          requiredScopes: [ "scanner.create","platform.create" ]
+        - pattern: /api/scanners/**
+          methods: [ PATCH, PUT ]
+          requiredScopes: [ "scanner.update","platform.update" ]
+        - pattern: /api/scanners/**
+          methods: [ DELETE ]
+          requiredScopes: [ "scanner.delete","platform.delete" ]
+
+        # SlideScanStatusController
+        - pattern: /api/slide-scan-status/stream/in-progress
+          methods: [ GET ]
+          requiredScopes: [ "scan.stream.read","platform.read" ]
+        - pattern: /api/slide-scan-status/barcode/**
+          methods: [ GET ]
+          requiredScopes: [ "scan.barcode.read","platform.read" ]
+        - pattern: /api/slide-scan-status/**
+          methods: [ GET ]
+          requiredScopes: [ "scan.status.read","platform.read" ]
+
+        # Catch-alls (optional but recommended)
+        - pattern: /api/**
+          methods: [ GET ]
+          requiredScopes: [ "platform.read" ]
+        - pattern: /api/**
+          methods: [ POST ]
+          requiredScopes: [ "platform.create" ]
+        - pattern: /api/**
+          methods: [ PATCH, PUT ]
+          requiredScopes: [ "platform.update" ]
+        - pattern: /api/**
+          methods: [ DELETE ]
+          requiredScopes: [ "platform.delete" ]

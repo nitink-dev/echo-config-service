@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: adminsvc-pdb
+  namespace: adminsvc-ns
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: admin-svc
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pathqasvc-pdb
+  namespace: pathqasvc-ns
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: pathqa-svc

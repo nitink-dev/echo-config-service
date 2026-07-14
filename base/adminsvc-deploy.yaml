@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-svc
+  namespace: adminsvc-ns
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: admin-svc
+  template:
+    metadata:
+      labels:
+        app: admin-svc
+    spec:
+      serviceAccountName: adminsvc-sa
+      nodeSelector:
+        cloud.google.com/gke-nodepool: eh-qa-io-perf-node-pool-2
+      containers:
+        - name: admin-svc
+          image: IMAGE_PATH:__IMAGE_TAG__
+          ports:
+            - containerPort: 8097
+          resources:
+            requests:
+              cpu: 750m
+              memory: 750Mi
+            limits:
+              cpu: 1500m
+              memory: 1.5Gi
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: bootstrap.eh-qa-kafka-cluster.us-central1.managedkafka.prj-d-dp.cloud.goog:9092
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: "SASL_SSL"
+            - name: CONFIG_SERVER_URL
+              value: "http://configserver-svc.configserver-ns.svc.gke:8888"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

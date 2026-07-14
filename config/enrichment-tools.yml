@@ -1,0 +1,67 @@
+tools:
+  applications:
+    eh-dicom-receiver:
+      mappings:
+        native:
+          aet: storescp.aetitle
+          port: storescp.port
+          ipAddress: sharedfolder.servername
+          network-drive: sharedfolder.sharepath
+    eh-lis-connector:
+      mappings:
+        common:
+          appName: message.config.sending-app
+          sendingFacility: message.config.sending-facility
+        native:
+          port: adapter.port
+    eh-dicom-enricher:
+      mappings:
+        common:
+          messageType: app.message.lis-request
+    eh-hl7-connector:
+      mappings:
+        common:
+          appName: message.config.sending-app
+          sendingFacility: message.config.sending-facility
+        native:
+          receive-port: tcp.incoming.port
+          receivingFacility: message.config.receiving-facility
+    eh-export-service:
+      mappings:
+        native:
+          synapseEnabled: downstream.enabled.synapse
+          ibexEnabled: downstream.enabled.ibex
+          visioPharmEnabled: downstream.enabled.visiopharm
+    eh-email-service:
+      mappings:
+        native:
+          emailTo: email.to
+          emailFrom: email.from
+          emailIbexTo: email.ibex_to
+    synapse:
+      mappings:
+        eh-hl7-connector:
+          native:
+            receivingAppName: message.config.receiving-app
+            synapse-receive-port: tcp.hosts.DEFAULT.port
+            ipAddress: tcp.hosts.DEFAULT.port.address
+            receivingFacility: message.config.receiving-facility
+            ims-name: ims.name
+        eh-export-service:
+          native:
+            synapseServerFolder: synapse.server.folder
+            synapseServerFolder2: synapse.server.folder2
+    lis:
+      mappings:
+        eh-lis-connector:
+          native:
+            ipAddress: adapter.ip-address
+            incoming-port: adapter.incoming-port
+            receivingFacility: message.config.receiving-facility
+            receivingAppName: message.config.receiving-app
+
+
+hosts:
+  DEFAULT:
+    address: 10.201.8.12
+    port: 6661

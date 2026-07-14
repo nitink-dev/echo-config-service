@@ -1,0 +1,61 @@
+slide-scan-process:
+  timeout:
+    # Enable or disable timeout monitoring scheduler
+    enabled: true
+
+    # Number of minutes after which an active scan is considered "stuck"
+    # Example: if no update for 2 minutes → it will be picked for timeout handling
+    minutes: 30
+
+    check:
+      # Scheduler execution frequency (in minutes)
+      interval: 15
+
+      # Initial delay before scheduler starts after application startup (in minutes)
+      initial-delay: 2
+
+    lock:
+      # Distributed lock duration (in minutes)
+      # Prevents multiple pods from processing same timeout job simultaneously
+      ttl-minutes: 10
+
+    processing:
+      # Number of scans processed in parallel (reactive concurrency)
+      # Increase for high throughput, reduce if system is under load
+      parallelism: 5
+
+  services:
+    eh-admin-console:
+      timeout-warning-completed: 0
+      failed: 0
+
+    eh-dp-dicom-receiver:
+      enrichment-in-progress: 2
+
+    eh-dp-dicom-enricher:
+      enrichment-in-progress: 3
+      enrichment-completed: 24
+      dicom-enriched-failed: 0
+
+    eh-dp-export-service:
+      export-in-progress: 10
+      synapse-exported: 10
+      exported: 10
+      export-failed: -20
+      synapse-export-failed: -10
+
+    eh-dp-hl7-connector:
+      synapse-started: 5
+      synapse-completed: 5
+      synapse-failed: -5
+
+    eh-ibex-adapter:
+      ibex-invalid-data: -5
+      ibex-slide-download-completed: 5
+      ibex-slide-download-failed: -5
+      ibex-classification-finished: 5
+      ibex-warning-completed: 10
+      ibex-classification-failed: -5
+      ibex-invalid-slide: -5
+      ibex-slide-creation-failed: -5
+      ibex-files-download-failed: -5
