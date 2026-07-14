@@ -7,6 +7,7 @@ import com.eh.digiatalpathalogy.admin.exception.InternalServerException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
 import com.eh.digiatalpathalogy.admin.repository.SlideScannerRepository;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
+import com.eh.digiatalpathalogy.admin.services.NotificationService;
 import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,12 +41,16 @@ public class SlideScannerService {
     private final DicomStoreService dicomStoreService;
     private final ConfigStore configStore;
     private final SlideScannerRepository slideScannerRepository;
+    private final NotificationService notificationService;
 
-    public SlideScannerService(RedisEntityStore redisStore, DicomStoreService dicomStoreService, ConfigStore configStore, SlideScannerRepository slideScannerRepository) {
+
+    public SlideScannerService(RedisEntityStore redisStore, DicomStoreService dicomStoreService, ConfigStore configStore, SlideScannerRepository slideScannerRepository, NotificationService notificationService) {
         this.redisStore = redisStore;
         this.dicomStoreService = dicomStoreService;
         this.configStore = configStore;
         this.slideScannerRepository = slideScannerRepository;
+        this.notificationService = notificationService;
+
     }
 
     public Flux<SlideScanner> list() {
@@ -112,16 +117,18 @@ public class SlideScannerService {
         }
 
         Query query = buildDeviceSerialNumberQuery(deviceSerialNumber);
-        return slideScannerRepository.findAndModify(query, slideScanner)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
-                .flatMap(updated -> {
-                    Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
-                            .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
-                            .then();
-                    Mono<SlideScanner> result = incomingResearch ? getByDeviceSerialNumber(deviceSerialNumber) : Mono.just(updated);
-                    return Mono.whenDelayError(invalidateCache)
-                            .then(result);
-                })
+        return getByDeviceSerialNumber(deviceSerialNumber)
+                .flatMap(oldData -> slideScannerRepository.findAndModify(query, slideScanner)
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
+                        .flatMap(updated -> {
+                            Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
+                                    .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
+                                    .then();
+                            Mono<SlideScanner> result = incomingResearch ? getByDeviceSerialNumber(deviceSerialNumber) : Mono.just(updated);
+                            return Mono.whenDelayError(invalidateCache)
+                                    .then(result)
+                                    .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult).thenReturn(finalResult));
+                        }))
                 .doOnSuccess(updated -> log.info("Slide scanner updated successfully: DeviceSerialNumber={}", updated.getDeviceSerialNumber()))
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));
     }

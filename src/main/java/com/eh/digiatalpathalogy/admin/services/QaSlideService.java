@@ -8,6 +8,7 @@ import com.eh.digiatalpathalogy.admin.model.QaSlideDetails;
 import com.eh.digiatalpathalogy.admin.repository.QaSlideRepository;
 import com.eh.digiatalpathalogy.admin.util.EncryptionUtils;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
+import com.eh.digiatalpathalogy.admin.services.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -33,11 +34,13 @@ public class QaSlideService {
     private final RedisEntityStore redisStore;
     private final ConfigStore configStore;
     private final QaSlideRepository qaSlideRepository;
+    private final NotificationService notificationService;
 
-    public QaSlideService(RedisEntityStore redisStore, ConfigStore configStore, QaSlideRepository qaSlideRepository) {
+    public QaSlideService(RedisEntityStore redisStore, ConfigStore configStore, QaSlideRepository qaSlideRepository, NotificationService notificationService) {
         this.redisStore = redisStore;
         this.configStore = configStore;
         this.qaSlideRepository = qaSlideRepository;
+        this.notificationService = notificationService;
     }
 
     public Flux<QaSlide> listAll() {
@@ -75,12 +78,13 @@ public class QaSlideService {
 
         QaSlide patch = new QaSlide(null, null, EncryptionUtils.encrypt(slide.activationCode()));
         Query query = buildBarcodeQuery(barcode);
-        return qaSlideRepository.findAndModify(query, patch)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException(ERROR_MSG + barcode)))
-                .flatMap(updated -> redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
-                        .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
-                        .thenReturn(new QaSlide(null, updated.barcode(), EncryptionUtils.decrypt(updated.activationCode())))
-                        .thenReturn(updated))
+        return getByBarcode(barcode)
+                .flatMap(oldData -> qaSlideRepository.findAndModify(query, patch)
+                        .switchIfEmpty(Mono.error(new ResourceNotFoundException(ERROR_MSG + barcode)))
+                        .flatMap(updated -> redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
+                                .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX + "*"))
+                                .then(Mono.just(new QaSlide(null, updated.barcode(), EncryptionUtils.decrypt(updated.activationCode()))))
+                                .flatMap(finalResult -> notificationService.notifyEntityChange("qaSlide", oldData, finalResult).thenReturn(finalResult))))
                 .doOnSuccess(updated -> log.info("Slide updated successfully for barcode: {}", updated.barcode()))
                 .doOnError(e -> log.error("Failed to update slide with barcode {}: {}", barcode, e.getMessage(), e));
     }

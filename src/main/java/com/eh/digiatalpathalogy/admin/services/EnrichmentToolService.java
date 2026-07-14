@@ -6,6 +6,7 @@ import com.eh.digiatalpathalogy.admin.config.EnrichmentToolConfig;
 import com.eh.digiatalpathalogy.admin.exception.HttpRequestException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
 import com.eh.digiatalpathalogy.admin.model.ConfigPayload;
+import com.eh.digiatalpathalogy.admin.services.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -27,11 +28,13 @@ public class EnrichmentToolService {
     private final ConfigurationClient configurationClient;
     private final ConfigStore configStore;
     private final EnrichmentToolConfig toolConfig;
+    private final NotificationService notificationService;
 
-    public EnrichmentToolService(ConfigurationClient configurationClient, ConfigStore configStore, EnrichmentToolConfig toolConfig) {
+    public EnrichmentToolService(ConfigurationClient configurationClient, ConfigStore configStore, EnrichmentToolConfig toolConfig, NotificationService notificationService) {
         this.configurationClient = configurationClient;
         this.configStore = configStore;
         this.toolConfig = toolConfig;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -163,7 +166,8 @@ public class EnrichmentToolService {
 
         EnrichmentToolConfig.AppMapping appMapping = toolConfig.getApplications().get(application);
         return isValidPayload(application, payload)
-                .then(Mono.defer(() -> {
+                .then(getApplicationConfig(application).defaultIfEmpty(Collections.emptyMap()))
+                .flatMap(oldData -> Mono.defer(() -> {
                     boolean isAggregated = isAggregated(appMapping);
                     log.info("Application='{}' isAggregated={}", application, isAggregated);
 
@@ -179,9 +183,11 @@ public class EnrichmentToolService {
                             updateFlow = handleGenericAppUpdate(updatePayload, application);
                         }
                     }
+
                     return updateFlow.flatMap(result ->
                             configStore.deleteAllConfigKeys()
                                     .doOnSuccess(v -> log.info("Cleared config cache after update for application='{}'", application))
+                                    .then(notificationService.notifyEntityChange(application, oldData, result))
                                     .thenReturn(result)
                     );
                 }));

@@ -1,0 +1,39 @@
+package com.eh.digiatalpathalogy.admin.services;
+
+import com.eh.digiatalpathalogy.admin.model.EntityChangeNotification;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+@Service
+public class NotificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
+
+    private final WebClient webClient;
+
+    @Value("${notification.service.url}")
+    private String notificationServiceUrl;
+
+    public NotificationService(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
+    public <T> Mono<Void> notifyEntityChange(String entityType, T oldData, T newData) {
+
+        EntityChangeNotification<T> notification = new EntityChangeNotification<>(entityType, oldData, newData);
+
+        return webClient.post()
+                .uri(notificationServiceUrl)
+                .bodyValue(notification)
+                .retrieve()
+                .toBodilessEntity()
+                .doOnSuccess(resp -> log.info("Notification sent for entityType='{}' change", entityType))
+                .doOnError(e -> log.error("Failed to send notification for entityType='{}'", entityType, e))
+                .onErrorResume(e -> Mono.empty())
+                .then();
+    }
+}
