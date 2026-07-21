@@ -127,7 +127,8 @@ public class SlideScannerService {
                             Mono<SlideScanner> result = incomingResearch ? getByDeviceSerialNumber(deviceSerialNumber) : Mono.just(updated);
                             return Mono.whenDelayError(invalidateCache)
                                     .then(result)
-                                    .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult).thenReturn(finalResult));
+                                    .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult)
+                                    .thenReturn(finalResult));
                         }))
                 .doOnSuccess(updated -> log.info("Slide scanner updated successfully: DeviceSerialNumber={}", updated.getDeviceSerialNumber()))
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));

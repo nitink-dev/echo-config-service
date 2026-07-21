@@ -1,4 +1,0 @@
-package com.eh.digiatalpathalogy.admin.model;
-
-public record EntityChangeNotification<T>(String entityType, T oldData, T newData) {
-}

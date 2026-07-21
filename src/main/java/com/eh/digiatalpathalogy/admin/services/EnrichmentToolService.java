@@ -184,12 +184,13 @@ public class EnrichmentToolService {
                         }
                     }
 
-                    return updateFlow.flatMap(result ->
-                            configStore.deleteAllConfigKeys()
-                                    .doOnSuccess(v -> log.info("Cleared config cache after update for application='{}'", application))
-                                    .then(notificationService.notifyEntityChange(application, oldData, result))
-                                    .thenReturn(result)
-                    );
+                    return updateFlow.flatMap(result -> {
+                        notificationService.notifyEntityChange(application, oldData, result).subscribe();
+
+                        return configStore.deleteAllConfigKeys()
+                                .doOnSuccess(v -> log.info("Cleared config cache after update for application='{}'", application))
+                                .thenReturn(result);
+                    });
                 }));
     }
 

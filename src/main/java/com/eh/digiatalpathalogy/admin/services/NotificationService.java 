@@ -28,12 +28,13 @@ public class NotificationService {
     }
 
     public <T> Mono<Void> notifyEntityChange(String entityType, T oldData, T newData) {
+        String TEMPLATE_KEY = "ENTITY_CHANGE_DEFAULT";
 
-        EntityChangeNotification<T> notification = new EntityChangeNotification<>(entityType, oldData, newData);
+        EntityChangeNotification<T> notification = new EntityChangeNotification<>(TEMPLATE_KEY, entityType, oldData, newData);
 
         return Mono.fromCallable(() -> objectMapper.writeValueAsString(notification))
                 .flatMap(payload -> {
-                    ProducerRecord<String, String> record = new ProducerRecord<>(emailTopic, entityType, payload);
+                    ProducerRecord<String, String> record = new ProducerRecord<>(emailTopic, TEMPLATE_KEY, payload);
                     return sender.send(Mono.just(SenderRecord.create(record, null))).next();
                 })
                 .doOnSuccess(r -> log.info("Notification published for entityType='{}' change", entityType))
