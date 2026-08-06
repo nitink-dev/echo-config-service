@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-svc
+  namespace: adminsvc-ns
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer 
+  selector:
+    app: admin-svc  
+  ports:
+    - name: adminsvc
+      port: 8097
+      targetPort: 8097
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pathqa-svc
+  namespace: pathqasvc-ns
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  selector:
+    app: pathqa-svc  
+  ports:
+    - name: enrich
+      port: 8080
+      targetPort: 8080

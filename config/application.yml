@@ -1,0 +1,89 @@
+server:
+  port: 8097
+spring:
+  application:
+    name: eh-admin-console
+  main:
+    banner-mode: log
+  data:
+    mongodb:
+      uri: mongodb://10.201.8.52:27017
+      username: dbuser
+      password: DbUser@234
+      database: enrich_db
+      authentication-database: admin
+      auto-index-creation: true
+      connect-timeout: 1000
+      socket-timeout: 1000
+      retry-writes: false
+
+    redis:
+      host: localhost
+      port: 6379
+      password: Admin@123
+      timeout: 3s
+      lettuce:
+        shutdown-timeout: 100ms
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2s
+  config:
+    import:
+      - optional:file:config/enrichment-tools.yml
+      - optional:file:config/health-targets.yml
+      - optional:file:config/security-config.yml
+      - optional:file:config/slide-scan-config.yml
+    uri: http://10.201.8.192:8888
+
+  kafka:
+    bootstrap-servers: localhost:9094
+    properties:
+      request.timeout.ms: 90000
+      delivery.timeout.ms: 120000
+      metadata.max.age.ms: 30000
+      connections.max.idle.ms: 600000
+      retry.backoff.ms: 1000
+      enable-idempotence: true
+
+    listener:
+      ack-mode: record
+      concurrency: 2
+      type: single
+      missing-topics-fatal: false
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
+      compression-type: lz4
+
+    consumer:
+      group-id: admin-consumer-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: latest
+      enable-auto-commit: false
+      max-poll-records: 2
+      session-timeout-ms: 15000
+      heartbeat-interval-ms: 5000
+      max-poll-interval-ms: 3600000
+
+kafka:
+  topic:
+      qa-slide: pathqa-svc-topic
+      scan-progress: scan-progress-topic
+
+path:
+  qa-baseurl: http://10.201.8.57:8009
+  retry-attempt: 10
+  duration: 3
+
+gcp-config:
+  project-id: "prj-d-path-integration-cs1h"
+  location-id: "us-central1"

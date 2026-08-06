@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: adminsvc-sa
+  namespace: adminsvc-ns
+  annotations:
+    iam.gke.io/gcp-service-account: eh-qa-gke-runtime-sa@prj-d-dp.iam.gserviceaccount.com    

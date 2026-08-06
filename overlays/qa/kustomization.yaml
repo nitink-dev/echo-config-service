@@ -1,0 +1,32 @@
+resources:
+  - ../../base
+
+patches:
+  - path: svc_account_patch.yaml
+    target: 
+      kind: ServiceAccount
+      name: adminsvc-sa
+      namespace: adminsvc-ns
+
+  - path: pathqa_svc_acc_patch.yaml
+    target: 
+      kind: ServiceAccount
+      name: pathqasvc-sa
+      namespace: pathqasvc-ns
+
+  - target:
+      kind: Service
+      name: pathqa-svc
+      namespace: pathqasvc-ns
+    path: service_patch.yaml
+
+  - target:
+      kind: Service
+      name: admin-svc
+      namespace: adminsvc-ns
+    path: admin_svc_patch.yaml
+
+images:
+  - name: IMAGE_PATH
+    newName: us-central1-docker.pkg.dev/prj-d-dp/admin-service/admin_svc-image
+    newTag: ${IMAGE_TAG}

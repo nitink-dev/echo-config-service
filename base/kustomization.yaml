@@ -1,0 +1,9 @@
+resources:
+    - rbac.yaml
+    - rbac-pathqa.yaml
+    - autoscale.yaml
+    - pdb.yaml
+    - adminsvc-service.yaml
+    - adminsvc-deploy.yaml
+    - pathqasvc-deploy.yaml    
+  
