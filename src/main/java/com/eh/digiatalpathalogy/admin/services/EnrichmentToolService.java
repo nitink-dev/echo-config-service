@@ -6,6 +6,7 @@ import com.eh.digiatalpathalogy.admin.config.EnrichmentToolConfig;
 import com.eh.digiatalpathalogy.admin.exception.HttpRequestException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
 import com.eh.digiatalpathalogy.admin.model.ConfigPayload;
+import com.eh.digiatalpathalogy.admin.services.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -27,15 +28,17 @@ public class EnrichmentToolService {
     private final ConfigurationClient configurationClient;
     private final ConfigStore configStore;
     private final EnrichmentToolConfig toolConfig;
+    private final NotificationService notificationService;
 
-    public EnrichmentToolService(ConfigurationClient configurationClient, ConfigStore configStore, EnrichmentToolConfig toolConfig) {
+    public EnrichmentToolService(ConfigurationClient configurationClient, ConfigStore configStore, EnrichmentToolConfig toolConfig, NotificationService notificationService) {
         this.configurationClient = configurationClient;
         this.configStore = configStore;
         this.toolConfig = toolConfig;
+        this.notificationService = notificationService;
     }
 
     /**
-     * Converts logical payload into category-wise (git/common) config update structure.
+     * Converts logical payload into category-wise (native/common) config update structure.
      */
     private Map<String, Map<String, Object>> prepareUpdateRequestPayload(EnrichmentToolConfig.AppMapping appMapping, Map<String, Object> payload) {
         return appMapping.getMappings().entrySet().stream()
@@ -110,7 +113,7 @@ public class EnrichmentToolService {
     }
 
     /**
-     * Sends update request for a single category (git/common).
+     * Sends update request for a single category (native/common).
      */
     private Mono<Map<String, Object>> updateSingleCategory(String application, Map.Entry<String, Map<String, Object>> entry) {
         ConfigPayload request = new ConfigPayload(entry.getKey(), entry.getValue());
@@ -163,7 +166,8 @@ public class EnrichmentToolService {
 
         EnrichmentToolConfig.AppMapping appMapping = toolConfig.getApplications().get(application);
         return isValidPayload(application, payload)
-                .then(Mono.defer(() -> {
+                .then(getApplicationConfig(application).defaultIfEmpty(Collections.emptyMap()))
+                .flatMap(oldData -> Mono.defer(() -> {
                     boolean isAggregated = isAggregated(appMapping);
                     log.info("Application='{}' isAggregated={}", application, isAggregated);
 
@@ -179,11 +183,14 @@ public class EnrichmentToolService {
                             updateFlow = handleGenericAppUpdate(updatePayload, application);
                         }
                     }
-                    return updateFlow.flatMap(result ->
-                            configStore.deleteAllConfigKeys()
-                                    .doOnSuccess(v -> log.info("Cleared config cache after update for application='{}'", application))
-                                    .thenReturn(result)
-                    );
+
+                    return updateFlow.flatMap(result -> {
+                        notificationService.notifyEntityChange(application, oldData, payload).subscribe();
+
+                        return configStore.deleteAllConfigKeys()
+                                .doOnSuccess(v -> log.info("Cleared config cache after update for application='{}'", application))
+                                .thenReturn(result);
+                    });
                 }));
     }
 
