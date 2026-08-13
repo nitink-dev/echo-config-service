@@ -29,7 +29,7 @@ public class NotificationService {
 
     public <T> Mono<Void> notifyEntityChange(String entityType, T oldData, T newData) {
 
-        final String TEMPLATE_KEY = "ENTITY_CHANGE_DEFAULT";
+        final String TEMPLATE_KEY = newData == null ? "ENTITY_DELETE_DEFAULT" : "ENTITY_CHANGE_DEFAULT";
 
         EntityChangeNotification<T> notification = new EntityChangeNotification<>(TEMPLATE_KEY, entityType, oldData, newData);
 
