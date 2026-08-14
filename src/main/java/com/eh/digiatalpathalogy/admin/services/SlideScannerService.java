@@ -89,6 +89,7 @@ public class SlideScannerService {
         return slideScannerRepository.save(slideScanner)
                 .flatMap(saved -> redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
                         .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
+                        .then(notificationService.notifyEntityChange("scanner", null, saved))
                         .thenReturn(saved))
                 .doOnSuccess(saved -> log.info("Slide scanner created: DeviceSerialNumber={}", saved.getDeviceSerialNumber()))
                 .onErrorMap(DuplicateKeyException.class, ex -> {
