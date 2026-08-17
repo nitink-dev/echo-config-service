@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -36,6 +37,8 @@ class QaSlideServiceTest {
     private ConfigStore configStore;
     @Mock
     private QaSlideRepository qaSlideRepository;
+    @Mock
+    private NotificationService notificationService;
     @InjectMocks
     private QaSlideService service;
 
@@ -63,7 +66,7 @@ class QaSlideServiceTest {
     }
 
     @Test
-    @DisplayName("create: inserts a slide and invalidates caches")
+    @DisplayName("create: inserts a slide, invalidates caches and does NOT trigger an email")
     void create_success() {
         var request = newQaSlide();
         var saved = slide("id-100", request.barcode(), "Vsy6H0mbnuedkVATRrmhkji/DneagLfZEACPiNquNjOQQbRYLfdjGFYnVss=");
@@ -71,11 +74,17 @@ class QaSlideServiceTest {
         when(qaSlideRepository.save(any(QaSlide.class))).thenReturn(Mono.just(saved));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
 
-        StepVerifier.create(service.create(request))
-                .expectNext(saved)
-                .verifyComplete();
+        try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
+            mocked.when(() -> EncryptionUtils.encrypt(anyString())).thenReturn(saved.activationCode());
+            mocked.when(() -> EncryptionUtils.decrypt(anyString())).thenReturn(request.activationCode());
+
+            StepVerifier.create(service.create(request))
+                    .expectNext(saved)
+                    .verifyComplete();
+        }
 
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
+        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -84,18 +93,24 @@ class QaSlideServiceTest {
         var request = slide(null, "10224", "test-activation-code");
         when(qaSlideRepository.save(any(QaSlide.class)))
                 .thenReturn(Mono.error(new DuplicateKeyException("E11000 duplicate key")));
-        StepVerifier.create(service.create(request))
-                .expectErrorSatisfies(ex -> {
-                    assert ex instanceof HttpRequestException;
-                    var hre = (HttpRequestException) ex;
-                    assert hre.getStatus() == HttpStatus.CONFLICT;
-                    assert ("Slide with barcode '" + request.barcode() + "' already exists.").contains(hre.getResponseBody());
-                })
-                .verify();
+
+        try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
+            mocked.when(() -> EncryptionUtils.encrypt(anyString())).thenReturn("encrypted-value");
+
+            StepVerifier.create(service.create(request))
+                    .expectErrorSatisfies(ex -> {
+                        assert ex instanceof HttpRequestException;
+                        var hre = (HttpRequestException) ex;
+                        assert hre.getStatus() == HttpStatus.CONFLICT;
+                        assert ("Slide with barcode '" + request.barcode() + "' already exists.").contains(hre.getResponseBody());
+                    })
+                    .verify();
+        }
 
         verify(qaSlideRepository).save(any(QaSlide.class));
         verify(redisStore, never()).deleteKeysByPattern(anyString());
         verify(redisStore, never()).deleteByKey(anyString());
+        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -129,43 +144,66 @@ class QaSlideServiceTest {
     }
 
     @Test
-    @DisplayName("updateByBarcode: updates activationCode and invalidates caches")
+    @DisplayName("updateByBarcode: updates activationCode, invalidates caches, triggers an email and returns the new activation code in plaintext")
     void update_success() {
         String bc = "10224";
         var patchFromRequest = slide(null, null, "Elcwq81cA1dPXm7M");
+        var oldPersisted = slide("id-000", bc, "old-cipher-text");
         var updated = slide("id-333", bc, "Vsy6H0mbnuedkVATRrmhkji/DneagLfZEACPiNquNjOQQbRYLfdjGFYnVss=");
+        String newPlainActivationCode = "Elcwq81cA1dPXm7M-new";
 
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(QaSlide.class))).thenReturn(Mono.just(oldPersisted));
         when(qaSlideRepository.findAndModify(any(), any(QaSlide.class)))
                 .thenReturn(Mono.just(updated));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("qaSlide"), any(QaSlide.class), any(QaSlide.class)))
+                .thenReturn(Mono.empty());
 
-        StepVerifier.create(service.updateByBarcode(bc, patchFromRequest))
-                .expectNext(updated)
-                .verifyComplete();
+        try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
+            mocked.when(() -> EncryptionUtils.encrypt(anyString())).thenReturn("new-cipher-text");
+            mocked.when(() -> EncryptionUtils.mask(anyString())).thenCallRealMethod();
+            mocked.when(() -> EncryptionUtils.decrypt(updated.activationCode())).thenReturn(newPlainActivationCode);
+
+            StepVerifier.create(service.updateByBarcode(bc, patchFromRequest))
+                    .expectNextMatches(result -> result.id() == null && bc.equals(result.barcode())
+                            && newPlainActivationCode.equals(result.activationCode()))
+                    .verifyComplete();
+        }
 
         verify(qaSlideRepository).findAndModify(any(), any(QaSlide.class));
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
+        verify(notificationService).notifyEntityChange(eq("qaSlide"), any(QaSlide.class),
+                argThat((QaSlide n) -> newPlainActivationCode.equals(n.activationCode())));
     }
 
     @Test
     @DisplayName("updateByBarcode: 404 when slide not found")
     void update_notFound() {
 
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(QaSlide.class)))
+                .thenReturn(Mono.just(slide("id-000", MISSING_BARCODE, "old-cipher-text")));
         when(qaSlideRepository.findAndModify(any(), any(QaSlide.class))).thenReturn(Mono.empty());
-        StepVerifier.create(service.updateByBarcode(MISSING_BARCODE, slide(null, null, "new-activation-code")))
-                .expectErrorSatisfies(ex -> {
-                    assert ex instanceof ResourceNotFoundException;
-                    assert ("Slide not found with barcode: " + MISSING_BARCODE).equals(ex.getMessage());
-                })
-                .verify();
+
+        try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
+            mocked.when(() -> EncryptionUtils.encrypt(anyString())).thenReturn("new-cipher-text");
+            mocked.when(() -> EncryptionUtils.mask(anyString())).thenCallRealMethod();
+
+            StepVerifier.create(service.updateByBarcode(MISSING_BARCODE, slide(null, null, "new-activation-code")))
+                    .expectErrorSatisfies(ex -> {
+                        assert ex instanceof ResourceNotFoundException;
+                        assert ("Slide not found with barcode: " + MISSING_BARCODE).equals(ex.getMessage());
+                    })
+                    .verify();
+        }
 
         verify(qaSlideRepository).findAndModify(any(), any(QaSlide.class));
         verify(redisStore, never()).deleteKeysByPattern(anyString());
         verify(redisStore, never()).deleteByKey(anyString());
+        verifyNoInteractions(notificationService);
     }
 
     @Test
-    @DisplayName("deleteByBarcode: returns true and invalidates caches when deleteCount > 0")
+    @DisplayName("deleteByBarcode: returns true, invalidates caches and does NOT trigger an email")
     void delete_success() {
         String bc = "BC-DEL";
         when(qaSlideRepository.deleteByBarcode(bc)).thenReturn(Mono.just(1L));
@@ -176,6 +214,7 @@ class QaSlideServiceTest {
                 .verifyComplete();
 
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
+        verifyNoInteractions(notificationService);
     }
 
     @Test
@@ -193,6 +232,7 @@ class QaSlideServiceTest {
         verify(qaSlideRepository).deleteByBarcode(MISSING_BARCODE);
         verify(redisStore, never()).deleteKeysByPattern(anyString());
         verify(redisStore, never()).deleteByKey(anyString());
+        verifyNoInteractions(notificationService);
     }
 
 //    @Test
@@ -226,6 +266,7 @@ class QaSlideServiceTest {
                 .verifyComplete();
 
         verify(redisStore).findByKeyWithFallback(anyString(), any(), eq(QaSlide.class));
+        verifyNoInteractions(notificationService);
     }
 
 
