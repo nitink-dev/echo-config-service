@@ -28,6 +28,9 @@ class ConfigurationServiceTest {
     @Mock
     private RedisEntityStore redisStore;
 
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private ConfigurationService configurationService;
 
@@ -67,7 +70,7 @@ class ConfigurationServiceTest {
         given(configurationClient.updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class)))
                 .willReturn(Mono.just(Map.of("updated", true)));
         given(redisStore.deleteByKey(anyString())).willReturn(Mono.empty());
-        given(configurationClient.busRefresh()).willReturn(Mono.empty());
+        given(notificationService.notifyEntityChange(eq("dicomStore"), anyMap(), eq(incomingMap))).willReturn(Mono.empty());
 
         Mono<Map<String, Object>> result = configurationService.updatePathQaDicomStore(queryParams, incomingMap);
 
@@ -75,7 +78,28 @@ class ConfigurationServiceTest {
 
         verify(configurationClient, times(1)).updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class));
         verify(redisStore, times(1)).deleteByKey(anyString());
-        verify(configurationClient, times(1)).busRefresh();
+    }
+
+    @Test
+    @DisplayName("update: update pathQA dicom store triggers entity change notification")
+    void update_path_Qa_dicomStore_triggersNotification() {
+
+        Map<String, String> queryParams = Map.of("region", "us-central1");
+        Map<String, Object> incomingMap = Map.of(
+                "gcp-config.pathqa-store-url",
+                "projects/test-project/locations/us-central1/datasets/test-dataset/dicomStores/test-dicomstore"
+        );
+
+        given(configurationClient.updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class)))
+                .willReturn(Mono.just(Map.of("updated", true)));
+        given(redisStore.deleteByKey(anyString())).willReturn(Mono.empty());
+        given(notificationService.notifyEntityChange(eq("dicomStore"), anyMap(), eq(incomingMap))).willReturn(Mono.empty());
+
+        Mono<Map<String, Object>> result = configurationService.updatePathQaDicomStore(queryParams, incomingMap);
+
+        StepVerifier.create(result).expectNext(incomingMap).verifyComplete();
+
+        verify(notificationService, times(1)).notifyEntityChange(eq("dicomStore"), anyMap(), eq(incomingMap));
     }
 
 

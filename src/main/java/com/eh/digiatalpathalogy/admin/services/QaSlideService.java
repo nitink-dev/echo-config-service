@@ -47,7 +47,7 @@ public class QaSlideService {
 
         return redisStore.findByPatternWithFallback(SLIDE_BARCODE_PREFIX + ":all", qaSlide -> true, qaSlideRepository::findAll, QaSlide::barcode, QaSlide.class)
                 .flatMapMany(Flux::fromIterable)
-                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), EncryptionUtils.decrypt(qaSlide.activationCode())))
+                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), EncryptionUtils.mask(qaSlide.activationCode())))
                 .doOnSubscribe(sub -> log.debug("Initiating listAll operation"))
                 .doOnComplete(() -> log.debug("Completed listAll operation"));
     }
@@ -109,7 +109,7 @@ public class QaSlideService {
         String barcodeKey = SLIDE_BARCODE_PREFIX + barcode;
         return redisStore.findByKeyWithFallback(barcodeKey, () -> findByBarcode(barcode)
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException(ERROR_MSG + barcode))), QaSlide.class)
-                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), EncryptionUtils.decrypt(qaSlide.activationCode())))
+                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), EncryptionUtils.mask(qaSlide.activationCode())))
                 .doOnSuccess(slide -> log.info("Slide retrieved successfully for barcode: {}", barcode))
                 .doOnError(e -> log.error("Failed to retrieve slide with barcode {}: {}", barcode, e.getMessage(), e));
     }

@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
 import java.util.Map;
 
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.PATH_QA_DICOM_STORE;
@@ -20,10 +21,12 @@ public class ConfigurationService {
 
     private final ConfigurationClient configurationClient;
     private final RedisEntityStore redisStore;
+    private final NotificationService notificationService;
 
-    public ConfigurationService(ConfigurationClient configurationClient, RedisEntityStore redisStore) {
+    public ConfigurationService(ConfigurationClient configurationClient, RedisEntityStore redisStore, NotificationService notificationService) {
         this.configurationClient = configurationClient;
         this.redisStore = redisStore;
+        this.notificationService = notificationService;
     }
 
     public Mono<Map<String, Object>> updateConfiguration(String application,
@@ -41,6 +44,7 @@ public class ConfigurationService {
         configPayload.setSource("common");
         return updateConfiguration(null, queryParams, configPayload)
                 .then(redisStore.deleteByKey(PATH_QA_DICOM_STORE))
+                .then(notificationService.notifyEntityChange("dicomStore", Collections.emptyMap(), config))
                 .thenReturn(config);
     }
 

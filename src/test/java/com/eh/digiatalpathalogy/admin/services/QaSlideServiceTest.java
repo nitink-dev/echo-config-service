@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -45,7 +44,7 @@ class QaSlideServiceTest {
     }
 
     @Test
-    @DisplayName("listAll: returns all slides from Redis (no fallback)")
+    @DisplayName("listAll: returns all slides from Redis (no fallback) with masked activation codes")
     void listAll_success() {
         var slides = listPathQaSlide();
 
@@ -53,7 +52,9 @@ class QaSlideServiceTest {
                 .thenReturn(Mono.just(slides));
 
         StepVerifier.create(service.listAll())
-                .expectNextMatches(q -> q.barcode().equals(slides.get(0).barcode()))
+                .expectNextMatches(q -> q.barcode().equals(slides.get(0).barcode())
+                        && q.activationCode().equals(EncryptionUtils.mask(slides.get(0).activationCode()))
+                        && !q.activationCode().equals(slides.get(0).activationCode()))
                 .expectNextCount(1)
                 .verifyComplete();
 
@@ -211,19 +212,19 @@ class QaSlideServiceTest {
 //    }
 
     @Test
-    @DisplayName("getByBarcode: returns slide from Redis (or fallback)")
+    @DisplayName("getByBarcode: returns slide from Redis (or fallback) with a masked activation code")
     void getByBarcode_success() {
 
         var qaSlide = pathQaSlide();
 
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(QaSlide.class))).thenReturn(Mono.just(qaSlide));
-        try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
-            mocked.when(() -> EncryptionUtils.decrypt(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-            StepVerifier.create(service.getByBarcode("10224"))
-                    .expectNextMatches(result -> result != null && result.id() == null && result.barcode().equals("10224") && result.activationCode().equals("Elcwq81cA1dPXm7M"))
-                    .verifyComplete();
-        }
+        StepVerifier.create(service.getByBarcode("10224"))
+                .expectNextMatches(result -> result != null && result.id() == null && result.barcode().equals("10224")
+                        && result.activationCode().equals(EncryptionUtils.mask(qaSlide.activationCode()))
+                        && !result.activationCode().equals(qaSlide.activationCode()))
+                .verifyComplete();
+
         verify(redisStore).findByKeyWithFallback(anyString(), any(), eq(QaSlide.class));
     }
 
