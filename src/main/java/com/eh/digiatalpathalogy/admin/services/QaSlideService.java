@@ -47,7 +47,7 @@ public class QaSlideService {
 
         return redisStore.findByPatternWithFallback(SLIDE_BARCODE_PREFIX + ":all", qaSlide -> true, qaSlideRepository::findAll, QaSlide::barcode, QaSlide.class)
                 .flatMapMany(Flux::fromIterable)
-                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), EncryptionUtils.mask(qaSlide.activationCode())))
+                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), qaSlide.activationCode()))
                 .doOnSubscribe(sub -> log.debug("Initiating listAll operation"))
                 .doOnComplete(() -> log.debug("Completed listAll operation"));
     }
@@ -58,6 +58,7 @@ public class QaSlideService {
                 .flatMap(saved -> redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
                         .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
                         .thenReturn(new QaSlide(null, saved.barcode(), EncryptionUtils.decrypt(qaSlide.activationCode())))
+                        .then(notificationService.notifyEntityChange("qaSlide", null, saved))
                         .thenReturn(saved))
                 .doOnSuccess(saved -> log.info("Slide created successfully with barcode: {}", saved.barcode()))
                 .onErrorMap(DuplicateKeyException.class, ex -> {
@@ -91,15 +92,17 @@ public class QaSlideService {
 
     public Mono<Boolean> deleteByBarcode(String barcode) {
 
-        return qaSlideRepository.deleteByBarcode(barcode)
-                .flatMap(count -> {
-                    if (count == 0) {
-                        return Mono.error(new ResourceNotFoundException(ERROR_MSG + barcode));
-                    }
-                    return redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
-                            .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
-                            .thenReturn(true);
-                })
+        return getByBarcode(barcode)
+                .flatMap(oldData -> qaSlideRepository.deleteByBarcode(barcode)
+                        .flatMap(count -> {
+                            if (count == 0) {
+                                return Mono.error(new ResourceNotFoundException(ERROR_MSG + barcode));
+                            }
+                            return redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
+                                    .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
+                                    .then(notificationService.notifyEntityChange("qaSlide", oldData, null))
+                                    .thenReturn(true);
+                        }))
                 .doOnSuccess(v -> log.info("Slide deleted successfully with barcode: {}", barcode))
                 .doOnError(e -> log.error("Failed to delete slide with barcode {}: {}", barcode, e.getMessage(), e));
     }
@@ -109,7 +112,7 @@ public class QaSlideService {
         String barcodeKey = SLIDE_BARCODE_PREFIX + barcode;
         return redisStore.findByKeyWithFallback(barcodeKey, () -> findByBarcode(barcode)
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException(ERROR_MSG + barcode))), QaSlide.class)
-                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), EncryptionUtils.mask(qaSlide.activationCode())))
+                .map(qaSlide -> new QaSlide(null, qaSlide.barcode(), qaSlide.activationCode()))
                 .doOnSuccess(slide -> log.info("Slide retrieved successfully for barcode: {}", barcode))
                 .doOnError(e -> log.error("Failed to retrieve slide with barcode {}: {}", barcode, e.getMessage(), e));
     }

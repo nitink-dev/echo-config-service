@@ -47,7 +47,7 @@ class QaSlideServiceTest {
     }
 
     @Test
-    @DisplayName("listAll: returns all slides from Redis (no fallback) with masked activation codes")
+    @DisplayName("listAll: returns all slides from Redis (no fallback) with unmasked activation codes")
     void listAll_success() {
         var slides = listPathQaSlide();
 
@@ -56,8 +56,7 @@ class QaSlideServiceTest {
 
         StepVerifier.create(service.listAll())
                 .expectNextMatches(q -> q.barcode().equals(slides.get(0).barcode())
-                        && q.activationCode().equals(EncryptionUtils.mask(slides.get(0).activationCode()))
-                        && !q.activationCode().equals(slides.get(0).activationCode()))
+                        && q.activationCode().equals(slides.get(0).activationCode()))
                 .expectNextCount(1)
                 .verifyComplete();
 
@@ -66,13 +65,14 @@ class QaSlideServiceTest {
     }
 
     @Test
-    @DisplayName("create: inserts a slide, invalidates caches and does NOT trigger an email")
+    @DisplayName("create: inserts a slide, invalidates caches and triggers an email")
     void create_success() {
         var request = newQaSlide();
         var saved = slide("id-100", request.barcode(), "Vsy6H0mbnuedkVATRrmhkji/DneagLfZEACPiNquNjOQQbRYLfdjGFYnVss=");
 
         when(qaSlideRepository.save(any(QaSlide.class))).thenReturn(Mono.just(saved));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("qaSlide"), isNull(), eq(saved))).thenReturn(Mono.empty());
 
         try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
             mocked.when(() -> EncryptionUtils.encrypt(anyString())).thenReturn(saved.activationCode());
@@ -84,7 +84,7 @@ class QaSlideServiceTest {
         }
 
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
-        verifyNoInteractions(notificationService);
+        verify(notificationService).notifyEntityChange(eq("qaSlide"), isNull(), eq(saved));
     }
 
     @Test
@@ -203,25 +203,30 @@ class QaSlideServiceTest {
     }
 
     @Test
-    @DisplayName("deleteByBarcode: returns true, invalidates caches and does NOT trigger an email")
+    @DisplayName("deleteByBarcode: returns true, invalidates caches and triggers an email")
     void delete_success() {
         String bc = "BC-DEL";
+        var oldPersisted = slide("id-000", bc, "old-cipher-text");
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(QaSlide.class))).thenReturn(Mono.just(oldPersisted));
         when(qaSlideRepository.deleteByBarcode(bc)).thenReturn(Mono.just(1L));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("qaSlide"), any(QaSlide.class), isNull())).thenReturn(Mono.empty());
 
         StepVerifier.create(service.deleteByBarcode(bc))
                 .expectNext(true)
                 .verifyComplete();
 
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
-        verifyNoInteractions(notificationService);
+        verify(notificationService).notifyEntityChange(eq("qaSlide"), any(QaSlide.class), isNull());
     }
 
     @Test
-    @DisplayName("deleteByBarcode: 404 when deleteCount == 0")
+    @DisplayName("deleteByBarcode: 404 when slide not found")
     void delete_notFound() {
 
-        when(qaSlideRepository.deleteByBarcode(MISSING_BARCODE)).thenReturn(Mono.just(0L));
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(QaSlide.class)))
+                .thenReturn(Mono.error(new ResourceNotFoundException("Slide not found with barcode: " + MISSING_BARCODE)));
+
         StepVerifier.create(service.deleteByBarcode(MISSING_BARCODE))
                 .expectErrorSatisfies(ex -> {
                     assert ex instanceof ResourceNotFoundException;
@@ -229,7 +234,7 @@ class QaSlideServiceTest {
                 })
                 .verify();
 
-        verify(qaSlideRepository).deleteByBarcode(MISSING_BARCODE);
+        verify(qaSlideRepository, never()).deleteByBarcode(anyString());
         verify(redisStore, never()).deleteKeysByPattern(anyString());
         verify(redisStore, never()).deleteByKey(anyString());
         verifyNoInteractions(notificationService);
@@ -252,7 +257,7 @@ class QaSlideServiceTest {
 //    }
 
     @Test
-    @DisplayName("getByBarcode: returns slide from Redis (or fallback) with a masked activation code")
+    @DisplayName("getByBarcode: returns slide from Redis (or fallback) with an unmasked activation code")
     void getByBarcode_success() {
 
         var qaSlide = pathQaSlide();
@@ -261,8 +266,7 @@ class QaSlideServiceTest {
 
         StepVerifier.create(service.getByBarcode("10224"))
                 .expectNextMatches(result -> result != null && result.id() == null && result.barcode().equals("10224")
-                        && result.activationCode().equals(EncryptionUtils.mask(qaSlide.activationCode()))
-                        && !result.activationCode().equals(qaSlide.activationCode()))
+                        && result.activationCode().equals(qaSlide.activationCode()))
                 .verifyComplete();
 
         verify(redisStore).findByKeyWithFallback(anyString(), any(), eq(QaSlide.class));
