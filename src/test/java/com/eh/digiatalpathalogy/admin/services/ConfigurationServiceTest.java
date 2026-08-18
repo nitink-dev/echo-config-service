@@ -1,6 +1,7 @@
 package com.eh.digiatalpathalogy.admin.services;
 
 import com.eh.digiatalpathalogy.admin.client.ConfigurationClient;
+import com.eh.digiatalpathalogy.admin.config.ConfigStore;
 import com.eh.digiatalpathalogy.admin.model.ConfigPayload;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +28,12 @@ class ConfigurationServiceTest {
 
     @Mock
     private RedisEntityStore redisStore;
+
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private ConfigStore configStore;
 
     @InjectMocks
     private ConfigurationService configurationService;
@@ -62,9 +69,11 @@ class ConfigurationServiceTest {
                 "projects/test-project/locations/us-central1/datasets/test-dataset/dicomStores/test-dicomstore"
         );
 
+        given(configStore.get(anyString(), anyString())).willReturn(Mono.error(new java.util.NoSuchElementException("not found")));
         given(configurationClient.updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class)))
                 .willReturn(Mono.just(Map.of("updated", true)));
         given(redisStore.deleteByKey(anyString())).willReturn(Mono.empty());
+        given(notificationService.notifyEntityChange(anyString(), any(), any())).willReturn(Mono.empty());
 
         Mono<Map<String, Object>> result = configurationService.updatePathQaDicomStore(queryParams, incomingMap);
 
@@ -72,6 +81,7 @@ class ConfigurationServiceTest {
 
         verify(configurationClient, times(1)).updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class));
         verify(redisStore, times(1)).deleteByKey(anyString());
+        verify(notificationService, times(1)).notifyEntityChange(eq("dicomStore"), isNull(), eq(incomingMap));
     }
 
 
