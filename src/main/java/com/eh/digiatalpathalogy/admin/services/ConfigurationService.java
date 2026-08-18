@@ -8,9 +8,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.Collections;
 import java.util.Map;
 
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.PATH_QA_DICOM_STORE;
+import static com.eh.digiatalpathalogy.admin.constant.EnrichmentToolConstant.CONFIG_SOURCE_GIT;
 
 @Service
 public class ConfigurationService {
@@ -19,31 +21,29 @@ public class ConfigurationService {
 
     private final ConfigurationClient configurationClient;
     private final RedisEntityStore redisStore;
+    private final NotificationService notificationService;
 
-    public ConfigurationService(ConfigurationClient configurationClient, RedisEntityStore redisStore) {
+    public ConfigurationService(ConfigurationClient configurationClient, RedisEntityStore redisStore, NotificationService notificationService) {
         this.configurationClient = configurationClient;
         this.redisStore = redisStore;
+        this.notificationService = notificationService;
     }
 
     public Mono<Map<String, Object>> updateConfiguration(String application,
                                                          Map<String, String> queryParams,
                                                          ConfigPayload config) {
         return configurationClient.updateConfig(application, queryParams, config)
-                .flatMap(updated -> configurationClient.busRefresh()
-                        .thenReturn(updated))
                 .doOnSuccess(updated -> log.info("Configuration for '{}' updated successfully", application))
                 .doOnError(error -> log.error("Failed to update configuration for '{}'", application, error));
     }
 
     public Mono<Map<String, Object>> updatePathQaDicomStore(Map<String, String> queryParams, Map<String, Object> config) {
         ConfigPayload configPayload = new ConfigPayload();
-        configPayload.setSource("native");
+        configPayload.setSource(CONFIG_SOURCE_GIT);
         configPayload.setConfig(config);
         configPayload.setSource("common");
         return updateConfiguration(null, queryParams, configPayload)
                 .then(redisStore.deleteByKey(PATH_QA_DICOM_STORE))
-                .flatMap(updated -> configurationClient.busRefresh()
-                        .thenReturn(updated))
                 .thenReturn(config);
     }
 

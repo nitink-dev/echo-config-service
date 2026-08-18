@@ -14,6 +14,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.eh.digiatalpathalogy.admin.constant.EnrichmentToolConstant.CONFIG_SOURCE_GIT;
+import static com.eh.digiatalpathalogy.admin.constant.EnrichmentToolConstant.CONFIG_SOURCE_VAULT;
+
 @Component
 @RefreshScope
 public class ConfigurationClient {
@@ -22,15 +25,18 @@ public class ConfigurationClient {
     @Value("${spring.config.uri}")
     private String configBaseUrl;
 
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
+
     private final HttpRequestHandler requestHandler;
 
     public ConfigurationClient(HttpRequestHandler requestHandler) {
         this.requestHandler = requestHandler;
     }
 
-    public Mono<Map<String, Object>> loadConfiguration(String application, String profile) {
+    public Mono<Map<String, Object>> loadConfiguration(String application) {
 
-        String url = Stream.of(application, profile)
+        String url = Stream.of(application, activeProfile)
                 .filter(s -> s != null && !s.isEmpty())
                 .collect(Collectors.joining("/", configBaseUrl + "/", ""));
         return requestHandler.request(url, HttpMethod.GET, null, null, null, new ParameterizedTypeReference<Map<String, Object>>() {
@@ -42,13 +48,18 @@ public class ConfigurationClient {
         if (request.getSource().equals("common")) {
             application = null;
         }
+        if (queryParams != null) {
+            queryParams.put("profile",activeProfile);
+        }else {
+            queryParams = Map.of("profile",activeProfile);
+        }
         return requestHandler.request(buildUpdateConfigUrl(request.getSource(), application), HttpMethod.PATCH, queryParams, request.getConfig(), null, new ParameterizedTypeReference<Map<String, Object>>() {
         });
     }
 
-    public Mono<AppConfiguration> loadConfig(String application, String profile) {
+    public Mono<AppConfiguration> loadConfig(String application) {
 
-        String url = Stream.of(application, profile)
+        String url = Stream.of(application, activeProfile)
                 .filter(s -> s != null && !s.isEmpty())
                 .collect(Collectors.joining("/", configBaseUrl + "/", ""));
         return requestHandler.request(url, HttpMethod.GET, null, null, null, new ParameterizedTypeReference<AppConfiguration>() {
@@ -56,7 +67,7 @@ public class ConfigurationClient {
     }
 
     public String buildUpdateConfigUrl(String source, String application) {
-        String sourcePath = "vault".equalsIgnoreCase(source) ? "/vault/kv" : "/native";
+        String sourcePath = "vault".equalsIgnoreCase(source) ? CONFIG_SOURCE_VAULT : "/"+CONFIG_SOURCE_GIT;
         return (application == null || application.isEmpty())
                 ? configBaseUrl + sourcePath
                 : configBaseUrl + sourcePath + "/" + application;

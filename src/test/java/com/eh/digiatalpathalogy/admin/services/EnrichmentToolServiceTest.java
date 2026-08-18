@@ -31,12 +31,15 @@ class EnrichmentToolServiceTest {
     @Mock
     private ConfigStore configStore;
 
+    @Mock
+    private NotificationService notificationService;
+
     private EnrichmentToolService service;
 
     @BeforeEach
     void setUp() {
         EnrichmentToolConfig toolConfig = buildRealConfig();
-        service = new EnrichmentToolService(configurationClient, configStore, toolConfig);
+        service = new EnrichmentToolService(configurationClient, configStore, toolConfig, notificationService);
     }
 
     @Test
@@ -116,10 +119,11 @@ class EnrichmentToolServiceTest {
     @DisplayName("updateAppConfig: generic app → success + cache cleared")
     void updateAppConfig_genericApp_success() {
 
+        when(configStore.getFilteredProperties("eh-dicom-receiver"))
+                .thenReturn(Mono.just(Map.of()));
+
         when(configurationClient.updateConfig(eq("eh-dicom-receiver"), isNull(), any()))
                 .thenReturn(Mono.just(Map.of("storescp.aetitle", "NEW_AET")));
-
-        when(configurationClient.busRefresh()).thenReturn(Mono.empty());
         when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
 
         StepVerifier.create(service.updateAppConfig(
@@ -128,13 +132,18 @@ class EnrichmentToolServiceTest {
                 .expectNextMatches(m -> m.containsKey("storescp.aetitle"))
                 .verifyComplete();
 
-        verify(configurationClient).busRefresh();
         verify(configStore).deleteAllConfigKeys();
     }
 
     @Test
     @DisplayName("updateAppConfig: generic app → empty payload results in empty response")
     void updateAppConfig_genericApp_emptyPayload() {
+
+        when(configStore.getFilteredProperties("eh-dicom-receiver"))
+                .thenReturn(Mono.just(Map.of()));
+
+        when(notificationService.notifyEntityChange(anyString(), anyMap(), anyMap()))
+                .thenReturn(Mono.empty());
 
         when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
 
@@ -147,10 +156,11 @@ class EnrichmentToolServiceTest {
     @DisplayName("updateAppConfig: synapse → routes payload and updates mapped applications")
     void updateAppConfig_synapse_success() {
 
+        when(configStore.getAggregatedConfig("synapse"))
+                .thenReturn(Mono.just(Map.of()));
+
         when(configurationClient.updateConfig(anyString(), isNull(), any()))
                 .thenReturn(Mono.just(Map.of("ok", true)));
-
-        when(configurationClient.busRefresh()).thenReturn(Mono.empty());
         when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
 
         StepVerifier.create(service.updateAppConfig("synapse", Map.of(
@@ -169,10 +179,11 @@ class EnrichmentToolServiceTest {
     @DisplayName("updateAppConfig: array field → converts list to CSV string")
     void updateAppConfig_arrayField_convertedToCsv() {
 
+        when(configStore.getFilteredProperties("eh-email-service"))
+                .thenReturn(Mono.just(Map.of()));
+
         when(configurationClient.updateConfig(anyString(), isNull(), any()))
                 .thenReturn(Mono.just(Map.of("key", "value")));
-
-        when(configurationClient.busRefresh()).thenReturn(Mono.empty());
         when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
 
         StepVerifier.create(service.updateAppConfig(

@@ -40,7 +40,7 @@ public class HttpRequestHandler {
     private static final Duration INITIAL_BACKOFF = Duration.ofMillis(200);
     private static final Duration MAX_BACKOFF = Duration.ofSeconds(1);
 
-    private static final Duration END_TO_END_TIMEOUT = Duration.ofSeconds(8);
+    private static final Duration END_TO_END_TIMEOUT = Duration.ofSeconds(20);
 
     @Autowired
     public HttpRequestHandler(WebClient webClient) {

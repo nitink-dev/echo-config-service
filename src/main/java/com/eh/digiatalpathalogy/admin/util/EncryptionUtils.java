@@ -26,8 +26,13 @@ public final class EncryptionUtils {
     private static final int IV_LENGTH = 12;          // 96 bits (recommended)
     private static final int TAG_LENGTH_BITS = 128;   // Authentication tag
     private static final int AES_KEY_BYTES = 16;      // AES-128
+    private static final String MASKED_VALUE = "************";
 
     private EncryptionUtils() {
+    }
+
+    public static String mask(String ignored) {
+        return MASKED_VALUE;
     }
 
     public static String encrypt(String plainText) {

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import static com.eh.digiatalpathalogy.admin.constant.EnrichmentToolConstant.CONFIG_SOURCE_GIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
@@ -41,6 +42,7 @@ class ConfigurationClientTest {
     @BeforeEach
     void setup() {
         ReflectionTestUtils.setField(client, "configBaseUrl", "http://config-server");
+        ReflectionTestUtils.setField(client, "activeProfile", "dev");
     }
 
     private String urlIs(String expected) {
@@ -91,10 +93,11 @@ class ConfigurationClientTest {
     @DisplayName("loadConfiguration: builds URL correctly and delegates to requestHandler")
     void loadConfiguration_buildsUrlCorrectly(String application, String profile, String expectedUrl) {
 
+        ReflectionTestUtils.setField(client, "activeProfile", profile);
         Map<String, Object> expected = Map.of("value", "test");
         stubRequest(expectedUrl, HttpMethod.GET, null, null, null, Mono.just(expected));
 
-        StepVerifier.create(client.loadConfiguration(application, profile))
+        StepVerifier.create(client.loadConfiguration(application))
                 .expectNext(expected)
                 .verifyComplete();
 
@@ -110,7 +113,7 @@ class ConfigurationClientTest {
 
         stubRequest(expectedUrl, HttpMethod.GET, null, null, null, Mono.just(expected));
 
-        StepVerifier.create(client.loadConfig("eh-admin-console", "dev"))
+        StepVerifier.create(client.loadConfig("eh-admin-console"))
                 .assertNext(actual -> {
 
                     assertThat(actual.getName()).isEqualTo("eh-admin-console");
@@ -136,17 +139,17 @@ class ConfigurationClientTest {
     }
 
     @Test
-    @DisplayName("buildUpdateConfigUrl: native + app → {base}/native/{app}")
+    @DisplayName("buildUpdateConfigUrl: git + app → {base}/git/{app}")
     void buildUpdateConfigUrl_native_withApp() {
-        assertEquals("http://config-server/native/eh-dicom-receiver",
-                client.buildUpdateConfigUrl("native", "eh-dicom-receiver"));
+        assertEquals("http://config-server/git/eh-dicom-receiver",
+                client.buildUpdateConfigUrl("git", "eh-dicom-receiver"));
     }
 
     @Test
-    @DisplayName("buildUpdateConfigUrl: native + null app → {base}/native")
+    @DisplayName("buildUpdateConfigUrl: git + null app → {base}/git")
     void buildUpdateConfigUrl_native_noApp() {
-        assertEquals("http://config-server/native",
-                client.buildUpdateConfigUrl("native", null));
+        assertEquals("http://config-server/git",
+                client.buildUpdateConfigUrl(CONFIG_SOURCE_GIT, null));
     }
 
     @Test
@@ -164,16 +167,18 @@ class ConfigurationClientTest {
     }
 
     @Test
-    @DisplayName("updateConfig: non-common source → PATCH {base}/native/{app} with queryParams and body")
+    @DisplayName("updateConfig: non-common source → PATCH {base}/git/{app} with queryParams and body")
     void updateConfig_native_appProvided() {
+        ReflectionTestUtils.setField(client, "activeProfile", "dev");
         ConfigPayload payload = mock(ConfigPayload.class);
-        when(payload.getSource()).thenReturn("native");
+        when(payload.getSource()).thenReturn(CONFIG_SOURCE_GIT);
         when(payload.getConfig()).thenReturn(Map.of("a", 1));
 
-        Map<String, String> queryParams = Map.of("profile", "dev");
+        Map<String, String> queryParams = new HashMap<>();
+        queryParams.put("profile", "dev");
         Map<String, Object> expectedResponse = Map.of("ok", true);
 
-        String expectedUrl = "http://config-server/native/eh-dicom-receiver";
+        String expectedUrl = "http://config-server/git/eh-dicom-receiver";
         Object expectedBody = Map.of("a", 1);
 
         stubRequest(expectedUrl, HttpMethod.PATCH, queryParams, expectedBody, null, Mono.just(expectedResponse));
@@ -189,22 +194,25 @@ class ConfigurationClientTest {
     @Test
     @DisplayName("updateConfig: source=common → application forced null → PATCH {base}/native")
     void updateConfig_common_forcesNullApplication() {
+        ReflectionTestUtils.setField(client, "activeProfile", "dev");
         ConfigPayload payload = mock(ConfigPayload.class);
         when(payload.getSource()).thenReturn("common");     // forces application=null
         when(payload.getConfig()).thenReturn(Map.of("x", "y"));
 
         Map<String, Object> expectedResponse = Map.of("done", 1);
 
-        String expectedUrl = "http://config-server/native";
+        String expectedUrl = "http://config-server/git";
         Object expectedBody = Map.of("x", "y");
 
-        stubRequest(expectedUrl, HttpMethod.PATCH, null, expectedBody, null, Mono.just(expectedResponse));
+        Map<String, String> expectedQueryParams = Map.of("profile", "dev");
+
+        stubRequest(expectedUrl, HttpMethod.PATCH, expectedQueryParams, expectedBody, null, Mono.just(expectedResponse));
 
         StepVerifier.create(client.updateConfig("ignored-app", null, payload))
                 .expectNext(expectedResponse)
                 .verifyComplete();
 
-        verifyRequest(expectedUrl, HttpMethod.PATCH, null, expectedBody, null);
+        verifyRequest(expectedUrl, HttpMethod.PATCH, expectedQueryParams, expectedBody, null);
         verifyNoMoreInteractions(requestHandler);
     }
 

@@ -226,6 +226,8 @@ public class SlideScanTimeoutMonitorService {
                     slideScanProgressConfig.getTimeout().getCheck().getInterval(),
                     slideScanProgressConfig.getTimeout().getProcessing().getParallelism()
             );
+        }else {
+            log.error("SlideScanTimeoutMonitorService initialization failed. Timeout configuration is missing or not loaded from application properties.");
         }
     }
 

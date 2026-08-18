@@ -11,11 +11,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -36,6 +39,9 @@ import static com.eh.digiatalpathalogy.admin.constant.SlideScanStatusConstant.*;
 public class ConfigStore {
 
     private static final Logger log = LoggerFactory.getLogger(ConfigStore.class);
+
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
 
     private final ConfigurationClient configurationClient;
     private final RedisEntityStore redisStore;
@@ -95,7 +101,7 @@ public class ConfigStore {
         Mono<Map<String, Object>> existing = inFlightRefresh.get(inFlightKey);
         if (existing != null) return existing;
 
-        Mono<Map<String, Object>> loader = configurationClient.loadConfiguration(application, profile)
+        Mono<Map<String, Object>> loader = configurationClient.loadConfiguration(application)
                 .flatMap(cn -> extractAllMappedValues(application, cn))
                 .flatMap(values -> writeAllToRedis(values).thenReturn(values))
                 .doOnSubscribe(s -> log.info("Refreshing ALL config for (app={}, profile={})", application, profile))
@@ -185,11 +191,21 @@ public class ConfigStore {
      * Called on startup or bus-refresh.
      */
     public void refreshAll() {
-        deleteAllConfigKeys().then(refreshAllInternal(DEFAULT_APPLICATION, DEFAULT_PROFILE))
-                .then(refreshEnrichmentConfig())
+
+        deleteAllConfigKeys()
+                .then(refreshAllInternal(DEFAULT_APPLICATION, activeProfile)
+                        .onErrorResume(ex -> {
+                            log.error("Default config refresh failed", ex);
+                            return Mono.empty();
+                        }))
+                .then(refreshEnrichmentConfig()
+                        .onErrorResume(ex -> {
+                            log.error("Enrichment config refresh failed", ex);
+                            return Mono.just(Collections.emptyMap());
+                        }))
                 .subscribe(
-                        v -> log.info("ConfigValues initialized with fresh config for all applications."),
-                        e -> log.error("Failed to initialize ConfigValues on startup", e)
+                        v -> log.info("Configuration initialization completed"),
+                        e -> log.error("Unexpected startup error", e)
                 );
     }
 
@@ -235,8 +251,25 @@ public class ConfigStore {
                             filtered.put(key, value);
                         }
                     }
+                    if (allProps.containsKey(SERVICE_IP_ADDRESS)) {
+                        filtered.put(SERVICE_IP_ADDRESS, allProps.get(SERVICE_IP_ADDRESS));
+                    }
                     return filtered;
                 });
+    }
+
+    private final Map<String, Mono<AppConfiguration>> configCache =
+            new ConcurrentHashMap<>();
+
+    private Mono<AppConfiguration> loadConfigCached(String application) {
+
+        return configCache.computeIfAbsent(application, key -> configurationClient
+                        .loadConfig(application)
+                        .timeout(Duration.ofSeconds(20))
+                        .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)).maxBackoff(Duration.ofSeconds(10)))
+                        .doOnError(ex -> log.error("Failed loading config for {}", application, ex))
+                        .cache()
+        );
     }
 
     /**
@@ -245,7 +278,7 @@ public class ConfigStore {
      */
     private Mono<Map<String, Object>> fetchFromConfigService(String application, EnrichmentToolConfig.AppMapping mapping) {
 
-        return configurationClient.loadConfig(application, DEFAULT_PROFILE)
+        return loadConfigCached(application)
                 .flatMap(config -> {
                     List<ConfigPropertySource> propertySources = config.getPropertySources();
                     if (propertySources == null || propertySources.isEmpty()) {
@@ -341,7 +374,7 @@ public class ConfigStore {
                     }
 
                     return resultMono.map(props -> Map.entry(application, props));
-                })
+                }, 3)
                 .collectMap(Map.Entry::getKey, Map.Entry::getValue);
     }
 
@@ -376,11 +409,11 @@ public class ConfigStore {
     }
 
     public Mono<String> get(String redisKey) {
-        return get(redisKey, String.class, DEFAULT_APPLICATION, DEFAULT_PROFILE);
+        return get(redisKey, String.class, DEFAULT_APPLICATION, activeProfile);
     }
 
     public <T> Mono<T> get(String redisKey, Class<T> type) {
-        return get(redisKey, type, DEFAULT_APPLICATION, DEFAULT_PROFILE);
+        return get(redisKey, type, DEFAULT_APPLICATION, activeProfile);
     }
 
     public Mono<String> get(String redisKey, String application, String profile) {
@@ -388,7 +421,7 @@ public class ConfigStore {
     }
 
     public Mono<String> get(String redisKey, String application) {
-        return get(redisKey, String.class, application, DEFAULT_PROFILE);
+        return get(redisKey, String.class, application, activeProfile);
     }
 
     public <T> Mono<T> get(String redisKey, Class<T> type, String application, String profile) {
@@ -457,8 +490,11 @@ public class ConfigStore {
                             .flatMap(entry -> {
                                 String targetApp = entry.getKey();
                                 Map<String, String> mapping = entry.getValue();
-                                return configurationClient.loadConfig(targetApp, DEFAULT_PROFILE)
-                                        .map(cfg -> resolveFromConfig(cfg, mapping));
+                                return loadConfigCached(targetApp)
+                                        .map(cfg -> resolveFromConfig(cfg, mapping))
+                                        .onErrorResume(ex -> {log.error("Failed loading aggregated config for {}", targetApp, ex);
+                                            return Mono.just(Collections.emptyMap());
+                                        });
                             })
                             .reduce(new LinkedHashMap<String, Object>(), (acc, map) -> {
                                 acc.putAll(map);

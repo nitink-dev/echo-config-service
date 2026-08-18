@@ -6,7 +6,6 @@ import com.eh.digiatalpathalogy.admin.config.EnrichmentToolConfig;
 import com.eh.digiatalpathalogy.admin.exception.HttpRequestException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
 import com.eh.digiatalpathalogy.admin.model.ConfigPayload;
-import com.eh.digiatalpathalogy.admin.services.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -38,7 +37,7 @@ public class EnrichmentToolService {
     }
 
     /**
-     * Converts logical payload into category-wise (native/common) config update structure.
+     * Converts logical payload into category-wise (git/common) config update structure.
      */
     private Map<String, Map<String, Object>> prepareUpdateRequestPayload(EnrichmentToolConfig.AppMapping appMapping, Map<String, Object> payload) {
         return appMapping.getMappings().entrySet().stream()
@@ -113,7 +112,7 @@ public class EnrichmentToolService {
     }
 
     /**
-     * Sends update request for a single category (native/common).
+     * Sends update request for a single category (git/common).
      */
     private Mono<Map<String, Object>> updateSingleCategory(String application, Map.Entry<String, Map<String, Object>> entry) {
         ConfigPayload request = new ConfigPayload(entry.getKey(), entry.getValue());
@@ -127,10 +126,10 @@ public class EnrichmentToolService {
         return Flux.fromIterable(updatePayload.entrySet())
                 .flatMapSequential(entry -> updateSingleCategory(application, entry))
                 .collectList()
-                .flatMap(results -> {
+                .map(results -> {
                     Map<String, Object> merged = new LinkedHashMap<>();
                     results.forEach(merged::putAll);
-                    return configurationClient.busRefresh().thenReturn(merged);
+                    return merged;
                 })
                 .doOnSuccess(cp -> log.info("Configuration for '{}' updated successfully (all categories)", application))
                 .doOnError(ex -> log.error("Failed to update configuration for '{}' (one or more categories)", application, ex));
@@ -185,7 +184,7 @@ public class EnrichmentToolService {
                     }
 
                     return updateFlow.flatMap(result -> {
-                        notificationService.notifyEntityChange(application, oldData, result).subscribe();
+                        notificationService.notifyEntityChange(application, oldData, payload).subscribe();
 
                         return configStore.deleteAllConfigKeys()
                                 .doOnSuccess(v -> log.info("Cleared config cache after update for application='{}'", application))

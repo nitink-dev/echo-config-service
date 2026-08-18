@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
+import static com.eh.digiatalpathalogy.admin.constant.EnrichmentToolConstant.CONFIG_SOURCE_GIT;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -31,7 +32,7 @@ class ConfigurationControllerTest {
     void update_success() {
 
         ConfigPayload payload = new ConfigPayload();
-        payload.setSource("native");
+        payload.setSource(CONFIG_SOURCE_GIT);
         payload.setConfig(Map.of("path.qa-baseurl", "http://localhost:8009/api/slide/test"));
 
         given(configurationService.updateConfiguration(isNull(), anyMap(), any(ConfigPayload.class)))
@@ -54,7 +55,7 @@ class ConfigurationControllerTest {
     void update_application_config_success() {
 
         ConfigPayload payload = new ConfigPayload();
-        payload.setSource("native");
+        payload.setSource(CONFIG_SOURCE_GIT);
         payload.setConfig(Map.of("path.retry-attempt", 5, "path.duration", 1));
 
         given(configurationService.updateConfiguration(eq("eh-admin-console"), anyMap(), any(ConfigPayload.class)))

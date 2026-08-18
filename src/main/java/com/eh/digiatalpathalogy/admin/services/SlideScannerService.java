@@ -89,6 +89,7 @@ public class SlideScannerService {
         return slideScannerRepository.save(slideScanner)
                 .flatMap(saved -> redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
                         .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
+                        .then(notificationService.notifyEntityChange("scanner", null, saved))
                         .thenReturn(saved))
                 .doOnSuccess(saved -> log.info("Slide scanner created: DeviceSerialNumber={}", saved.getDeviceSerialNumber()))
                 .onErrorMap(DuplicateKeyException.class, ex -> {
@@ -128,7 +129,7 @@ public class SlideScannerService {
                             return Mono.whenDelayError(invalidateCache)
                                     .then(result)
                                     .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult)
-                                    .thenReturn(finalResult));
+                                            .thenReturn(finalResult));
                         }))
                 .doOnSuccess(updated -> log.info("Slide scanner updated successfully: DeviceSerialNumber={}", updated.getDeviceSerialNumber()))
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));
@@ -176,15 +177,17 @@ public class SlideScannerService {
 
     public Mono<Boolean> deleteByDeviceSerialNumber(String deviceSerialNumber) {
 
-        return slideScannerRepository.deleteByDeviceSerialNumber(deviceSerialNumber)
-                .flatMap(count -> {
-                    if (count == 0) {
-                        return Mono.error(new ResourceNotFoundException(ERROR_MSG + deviceSerialNumber));
-                    }
-                    return redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
-                            .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
-                            .thenReturn(true);
-                })
+        return getByDeviceSerialNumber(deviceSerialNumber)
+                .flatMap(oldData -> slideScannerRepository.deleteByDeviceSerialNumber(deviceSerialNumber)
+                        .flatMap(count -> {
+                            if (count == 0) {
+                                return Mono.error(new ResourceNotFoundException(ERROR_MSG + deviceSerialNumber));
+                            }
+                            return redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
+                                    .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
+                                    .then(notificationService.notifyEntityChange("scanner", oldData, null))
+                                    .thenReturn(true);
+                        }))
                 .doOnSuccess(v -> log.info("Slide Scanner deleted successfully with deviceSerialNumber: {}", deviceSerialNumber))
                 .doOnError(e -> log.error("Failed to delete slide scanner with deviceSerialNumber {}: {}", deviceSerialNumber, e.getMessage(), e));
     }
@@ -224,5 +227,3 @@ public class SlideScannerService {
     }
 
 }
-
-

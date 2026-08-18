@@ -14,6 +14,7 @@ import reactor.test.StepVerifier;
 
 import java.util.Map;
 
+import static com.eh.digiatalpathalogy.admin.constant.EnrichmentToolConstant.CONFIG_SOURCE_GIT;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -37,20 +38,18 @@ class ConfigurationServiceTest {
         String application = "eh-admin-console";
         Map<String, String> queryParams = Map.of("env", "dev");
         ConfigPayload payload = new ConfigPayload();
-        payload.setSource("native");
+        payload.setSource(CONFIG_SOURCE_GIT);
         payload.setConfig(Map.of("path.retry-attempt", 5, "path.duration", 1));
 
         Map<String, Object> updatedFromServer = Map.of("status", "ok", "app", application);
 
         given(configurationClient.updateConfig(application, queryParams, payload)).willReturn(Mono.just(updatedFromServer));
-        given(configurationClient.busRefresh()).willReturn(Mono.empty());
 
         Mono<Map<String, Object>> result = configurationService.updateConfiguration(application, queryParams, payload);
 
         StepVerifier.create(result).expectNext(updatedFromServer).verifyComplete();
 
         verify(configurationClient, times(1)).updateConfig(application, queryParams, payload);
-        verify(configurationClient, times(1)).busRefresh();
     }
 
     @Test
@@ -66,7 +65,6 @@ class ConfigurationServiceTest {
         given(configurationClient.updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class)))
                 .willReturn(Mono.just(Map.of("updated", true)));
         given(redisStore.deleteByKey(anyString())).willReturn(Mono.empty());
-        given(configurationClient.busRefresh()).willReturn(Mono.empty());
 
         Mono<Map<String, Object>> result = configurationService.updatePathQaDicomStore(queryParams, incomingMap);
 
@@ -74,7 +72,6 @@ class ConfigurationServiceTest {
 
         verify(configurationClient, times(1)).updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class));
         verify(redisStore, times(1)).deleteByKey(anyString());
-        verify(configurationClient, times(1)).busRefresh();
     }
 
 

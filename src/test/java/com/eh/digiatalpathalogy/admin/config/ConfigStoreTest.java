@@ -73,7 +73,7 @@ class ConfigStoreTest {
                 .assertNext(map -> assertThat(map).containsEntry("prop1", "cachedValue"))
                 .verifyComplete();
 
-        then(configurationClient).should(never()).loadConfig(anyString(), anyString());
+        then(configurationClient).should(never()).loadConfig(anyString());
     }
 
     @Test
@@ -98,7 +98,7 @@ class ConfigStoreTest {
 
         given(appConfig.getPropertySources()).willReturn(List.of(cps));
         given(cps.getSource()).willReturn(src);
-        given(configurationClient.loadConfig(eq(app), anyString())).willReturn(Mono.just(appConfig));
+        given(configurationClient.loadConfig(eq(app))).willReturn(Mono.just(appConfig));
         given(redisStore.findByKey(SERVICE_HOST_INFO + app, HostInfo.class))
                 .willReturn(Mono.just(new HostInfo("10.1.1.1", 8080, app, "Test Service")));
 
@@ -304,14 +304,14 @@ class ConfigStoreTest {
         ConfigStore spyStore = spy(new ConfigStore(configurationClient, redisStore, objectMapper, toolConfig, slideScanProgressConfig));
 
         given(redisStore.deleteKeysByPattern("config:*")).willReturn(Mono.empty());
-        given(configurationClient.loadConfiguration(anyString(), anyString()))
+        given(configurationClient.loadConfiguration(anyString()))
                 .willReturn(Mono.just(Map.of("propertySources", Collections.emptyList())));
 
         doReturn(Mono.just(Collections.emptyMap())).when(spyStore).refreshEnrichmentConfig();
 
         spyStore.refreshAll();
         then(redisStore).should(timeout(200)).deleteKeysByPattern("config:*");
-        then(configurationClient).should(timeout(200).times(1)).loadConfiguration(anyString(), anyString());
+        then(configurationClient).should(timeout(200).times(1)).loadConfiguration(anyString());
         then(spyStore).should(timeout(200).times(1)).refreshEnrichmentConfig();
 
 

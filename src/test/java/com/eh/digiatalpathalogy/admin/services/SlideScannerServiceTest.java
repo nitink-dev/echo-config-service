@@ -44,6 +44,8 @@ class SlideScannerServiceTest {
     private ConfigStore configStore;
     @Mock
     private SlideScannerRepository slideScannerRepository;
+    @Mock
+    private NotificationService notificationService;
     @InjectMocks
     private SlideScannerService service;
 
@@ -80,6 +82,7 @@ class SlideScannerServiceTest {
 
         when(slideScannerRepository.save(any(SlideScanner.class))).thenReturn(Mono.just(input));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), isNull(), any(SlideScanner.class))).thenReturn(Mono.empty());
 
         StepVerifier.create(service.create(input))
                 .expectNextMatches(sc ->
@@ -87,6 +90,8 @@ class SlideScannerServiceTest {
                                 Boolean.TRUE.equals(sc.getConnected()) &&
                                 "SS12118".equals(sc.getDeviceSerialNumber()))
                 .verifyComplete();
+
+        verify(notificationService).notifyEntityChange(eq("scanner"), isNull(), any(SlideScanner.class));
     }
 
     @Test
@@ -118,6 +123,7 @@ class SlideScannerServiceTest {
         when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class))).thenReturn(Mono.just(updatedInDb));
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class))).thenReturn(Mono.just(updatedInDb));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
 
         StepVerifier.create(service.updateByDeviceSerialNumber("S1", patch))
                 .expectNextMatches(sc ->
@@ -127,6 +133,7 @@ class SlideScannerServiceTest {
 
         verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
                 payload.getDepartment() == null && payload.getDicomStore() == null));
+        verify(notificationService).notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class));
     }
 
     @Test
@@ -153,23 +160,34 @@ class SlideScannerServiceTest {
     @Test
     @DisplayName("deleteByDeviceSerialNumber() → count=0 → ResourceNotFoundException")
     void delete_notFound() {
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class)))
+                .thenReturn(Mono.just(scanner("unavailable-device-serial-number")));
         when(slideScannerRepository.deleteByDeviceSerialNumber("unavailable-device-serial-number"))
                 .thenReturn(Mono.just(0L));
         StepVerifier.create(service.deleteByDeviceSerialNumber("unavailable-device-serial-number"))
                 .expectErrorMatches(ex -> ex instanceof ResourceNotFoundException &&
                         ex.getMessage().contains("Slide Scanner not found with Device :serial Number unavailable-device-serial-number"))
                 .verify();
+
+        verifyNoInteractions(notificationService);
     }
 
     @Test
-    @DisplayName("deleteByDeviceSerialNumber() → count>0 → true & clears caches")
+    @DisplayName("deleteByDeviceSerialNumber() → count>0 → true, clears caches & notifies with the deleted scanner's name")
     void delete_ok() {
+        SlideScanner deleted = scanner("SS12118");
+
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class)))
+                .thenReturn(Mono.just(deleted));
         when(slideScannerRepository.deleteByDeviceSerialNumber("SS12118")).thenReturn(Mono.just(1L));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), isNull())).thenReturn(Mono.empty());
 
         StepVerifier.create(service.deleteByDeviceSerialNumber("SS12118"))
                 .expectNext(true)
                 .verifyComplete();
+
+        verify(notificationService).notifyEntityChange(eq("scanner"), argThat((SlideScanner old) -> old.getName().equals(deleted.getName())), isNull());
     }
 
     @Test
@@ -332,6 +350,7 @@ class SlideScannerServiceTest {
 
         when(slideScannerRepository.save(any(SlideScanner.class))).thenReturn(Mono.just(saved));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), isNull(), any(SlideScanner.class))).thenReturn(Mono.empty());
 
         StepVerifier.create(service.create(input))
                 .expectNextMatches(sc -> "new-device-serial-number".equals(sc.getDeviceSerialNumber()) && Boolean.TRUE.equals(sc.getResearch()) && Boolean.FALSE.equals(sc.getConnected()))
@@ -340,21 +359,26 @@ class SlideScannerServiceTest {
         verify(slideScannerRepository).save(argThat(arg ->
                 arg.getId() == null && "new-device-serial-number".equals(arg.getDeviceId()) && Boolean.TRUE.equals(arg.getResearch()) && Boolean.FALSE.equals(arg.getConnected())
         ));
+        verify(notificationService).notifyEntityChange(eq("scanner"), isNull(), any(SlideScanner.class));
     }
 
     @Test
     @DisplayName("updateByDeviceSerialNumber() → findAndModify empty → ResourceNotFoundException")
     void update_findAndModifyEmpty_notFound() {
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class)))
+                .thenReturn(Mono.just(scanner("unavailable-device-serial-number")));
         when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class)))
                 .thenReturn(Mono.empty());
 
         StepVerifier.create(service.updateByDeviceSerialNumber("unavailable-device-serial-number", new SlideScanner()))
                 .expectError(ResourceNotFoundException.class)
                 .verify();
+
+        verifyNoInteractions(notificationService);
     }
 
     @Test
-    @DisplayName("updateByDeviceSerialNumber() → incomingResearch=false returns updated directly and clears caches")
+    @DisplayName("updateByDeviceSerialNumber() → incomingResearch=false returns updated directly, clears caches & notifies with old+new")
     void update_nonResearch_returnsUpdated_and_invalidatesCache() {
         SlideScanner patch = new SlideScanner();
         patch.setResearch(Boolean.FALSE);
@@ -364,21 +388,26 @@ class SlideScannerServiceTest {
         SlideScanner updated = scanner("SS12118");
         updated.setResearch(Boolean.FALSE);
 
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class)))
+                .thenReturn(Mono.just(scanner("SS12118")));
         when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class)))
                 .thenReturn(Mono.just(updated));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
 
         StepVerifier.create(service.updateByDeviceSerialNumber("SS12118", patch))
                 .expectNextMatches(sc -> "SS12118".equals(sc.getDeviceSerialNumber()) && Boolean.FALSE.equals(sc.getResearch()))
                 .verifyComplete();
 
-        // for non-research, service should not refetch via getByDeviceSerialNumber -> so no redisStore.findByKeyWithFallback needed
+        // for non-research, service should not refetch after the update -> only the initial oldData lookup hits findByKeyWithFallback
+        verify(redisStore, times(1)).findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class));
         verify(redisStore, times(2)).deleteKeysByPattern(anyString());
 
         // ensure service nullified id + deviceSerialNumber in payload before passing to repo
         verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
                 payload.getId() == null && payload.getDeviceSerialNumber() == null
         ));
+        verify(notificationService).notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class));
     }
 
     @Test
@@ -398,6 +427,7 @@ class SlideScannerServiceTest {
 
         // incomingResearch=true triggers refetch, so stub it
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class))).thenReturn(Mono.just(updatedInDb));
+        when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
         StepVerifier.create(service.updateByDeviceSerialNumber("SS12118", patch))
                 .expectNextMatches(sc -> "SS12118".equals(sc.getDeviceSerialNumber()) && Boolean.TRUE.equals(sc.getResearch()))
                 .verifyComplete();
