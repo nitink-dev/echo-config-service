@@ -102,7 +102,9 @@ public class QaSlideService {
                             }
                             return redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
                                     .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
-                                    .then(notificationService.notifyEntityChange("qaSlide", oldData, null))
+                                    .then(notificationService.notifyEntityChange("qaSlide",
+                                            new QaSlide(oldData.id(), oldData.barcode(), EncryptionUtils.decrypt(oldData.activationCode())),
+                                            null))
                                     .thenReturn(true);
                         }))
                 .doOnSuccess(v -> log.info("Slide deleted successfully with barcode: {}", barcode))

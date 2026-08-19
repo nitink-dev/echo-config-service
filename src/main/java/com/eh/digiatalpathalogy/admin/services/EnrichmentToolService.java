@@ -111,6 +111,21 @@ public class EnrichmentToolService {
         return Mono.just(Boolean.TRUE);
     }
 
+    private Map<String, Object> normalizeArrayFieldsForNotification(Map<String, Object> data) {
+        Map<String, Object> normalized = new LinkedHashMap<>(data);
+        for (String field : ARRAY_FIELDS) {
+            Object value = normalized.get(field);
+            if (value instanceof String[] arr) {
+                normalized.put(field, Arrays.asList(arr));
+            } else if (value instanceof String str) {
+                normalized.put(field, "test".equals(str) || str.isBlank()
+                        ? Collections.<String>emptyList()
+                        : Arrays.asList(str.split(",")));
+            }
+        }
+        return normalized;
+    }
+
     /**
      * Sends update request for a single category (git/common).
      */
@@ -184,7 +199,7 @@ public class EnrichmentToolService {
                     }
 
                     return updateFlow.flatMap(result -> {
-                        notificationService.notifyEntityChange(application, oldData, payload).subscribe();
+                        notificationService.notifyEntityChange(application, normalizeArrayFieldsForNotification(oldData), payload).subscribe();
 
                         return configStore.deleteAllConfigKeys()
                                 .doOnSuccess(v -> log.info("Cleared config cache after update for application='{}'", application))

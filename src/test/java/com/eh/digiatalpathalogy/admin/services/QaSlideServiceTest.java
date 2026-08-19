@@ -210,17 +210,23 @@ class QaSlideServiceTest {
     void delete_success() {
         String bc = "BC-DEL";
         var oldPersisted = slide("id-000", bc, "old-cipher-text");
+        String oldPlainActivationCode = "old-cipher-text-plain";
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(QaSlide.class))).thenReturn(Mono.just(oldPersisted));
         when(qaSlideRepository.deleteByBarcode(bc)).thenReturn(Mono.just(1L));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
         when(notificationService.notifyEntityChange(eq("qaSlide"), any(QaSlide.class), isNull())).thenReturn(Mono.empty());
 
-        StepVerifier.create(service.deleteByBarcode(bc))
-                .expectNext(true)
-                .verifyComplete();
+        try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
+            mocked.when(() -> EncryptionUtils.decrypt(oldPersisted.activationCode())).thenReturn(oldPlainActivationCode);
+
+            StepVerifier.create(service.deleteByBarcode(bc))
+                    .expectNext(true)
+                    .verifyComplete();
+        }
 
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
-        verify(notificationService).notifyEntityChange(eq("qaSlide"), any(QaSlide.class), isNull());
+        verify(notificationService).notifyEntityChange(eq("qaSlide"),
+                argThat((QaSlide o) -> oldPlainActivationCode.equals(o.activationCode())), isNull());
     }
 
     @Test

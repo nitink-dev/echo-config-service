@@ -194,4 +194,28 @@ class EnrichmentToolServiceTest {
                 .verifyComplete();
     }
 
+    @Test
+    @DisplayName("updateAppConfig: array field in oldData is normalized to a List before notifying")
+    void updateAppConfig_arrayField_oldDataNormalizedForNotification() {
+
+        when(configStore.getFilteredProperties("eh-email-service"))
+                .thenReturn(Mono.just(Map.of("emailTo", new String[]{"old1@test.com", "old2@test.com"})));
+
+        when(configurationClient.updateConfig(anyString(), isNull(), any()))
+                .thenReturn(Mono.just(Map.of("key", "value")));
+        when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(anyString(), anyMap(), anyMap())).thenReturn(Mono.empty());
+
+        StepVerifier.create(service.updateAppConfig(
+                        "eh-email-service",
+                        Map.of("emailTo", List.of("new1@test.com", "new2@test.com"))
+                ))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verify(notificationService).notifyEntityChange(eq("eh-email-service"),
+                argThat((Map<String, Object> m) -> List.of("old1@test.com", "old2@test.com").equals(m.get("emailTo"))),
+                argThat((Map<String, Object> m) -> List.of("new1@test.com", "new2@test.com").equals(m.get("emailTo"))));
+    }
+
 }
