@@ -85,7 +85,9 @@ public class QaSlideService {
                         .flatMap(updated -> redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
                                 .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX + "*"))
                                 .then(Mono.just(new QaSlide(null, updated.barcode(), EncryptionUtils.decrypt(updated.activationCode()))))
-                                .flatMap(finalResult -> notificationService.notifyEntityChange("qaSlide", oldData, finalResult).thenReturn(finalResult))))
+                                .flatMap(finalResult -> notificationService.notifyEntityChange("qaSlide",
+                                        new QaSlide(oldData.id(), oldData.barcode(), EncryptionUtils.decrypt(oldData.activationCode())),
+                                        finalResult).thenReturn(finalResult))))
                 .doOnSuccess(updated -> log.info("Slide updated successfully for barcode: {}", updated.barcode()))
                 .doOnError(e -> log.error("Failed to update slide with barcode {}: {}", barcode, e.getMessage(), e));
     }

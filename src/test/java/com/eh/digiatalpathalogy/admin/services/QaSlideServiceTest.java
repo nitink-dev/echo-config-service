@@ -151,6 +151,7 @@ class QaSlideServiceTest {
         var oldPersisted = slide("id-000", bc, "old-cipher-text");
         var updated = slide("id-333", bc, "Vsy6H0mbnuedkVATRrmhkji/DneagLfZEACPiNquNjOQQbRYLfdjGFYnVss=");
         String newPlainActivationCode = "Elcwq81cA1dPXm7M-new";
+        String oldPlainActivationCode = "old-cipher-text-plain";
 
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(QaSlide.class))).thenReturn(Mono.just(oldPersisted));
         when(qaSlideRepository.findAndModify(any(), any(QaSlide.class)))
@@ -163,6 +164,7 @@ class QaSlideServiceTest {
             mocked.when(() -> EncryptionUtils.encrypt(anyString())).thenReturn("new-cipher-text");
             mocked.when(() -> EncryptionUtils.mask(anyString())).thenCallRealMethod();
             mocked.when(() -> EncryptionUtils.decrypt(updated.activationCode())).thenReturn(newPlainActivationCode);
+            mocked.when(() -> EncryptionUtils.decrypt(oldPersisted.activationCode())).thenReturn(oldPlainActivationCode);
 
             StepVerifier.create(service.updateByBarcode(bc, patchFromRequest))
                     .expectNextMatches(result -> result.id() == null && bc.equals(result.barcode())
@@ -172,7 +174,8 @@ class QaSlideServiceTest {
 
         verify(qaSlideRepository).findAndModify(any(), any(QaSlide.class));
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
-        verify(notificationService).notifyEntityChange(eq("qaSlide"), any(QaSlide.class),
+        verify(notificationService).notifyEntityChange(eq("qaSlide"),
+                argThat((QaSlide o) -> oldPlainActivationCode.equals(o.activationCode())),
                 argThat((QaSlide n) -> newPlainActivationCode.equals(n.activationCode())));
     }
 
