@@ -29,32 +29,105 @@ public class NotificationService {
 
     public <T> Mono<Void> notifyEntityChange(String entityType, T oldData, T newData) {
 
-        final String TEMPLATE_KEY = newData == null ? "ENTITY_DELETE_DEFAULT" : oldData == null ? "ENTITY_CREATE_DEFAULT" : "ENTITY_CHANGE_DEFAULT";
+        log.info("Starting notification workflow. entityType='{}'", entityType);
 
-        EntityChangeNotification<T> notification = new EntityChangeNotification<>(TEMPLATE_KEY, entityType, oldData, newData);
+        final String TEMPLATE_KEY =
+                newData == null ? "ENTITY_DELETE_DEFAULT"
+                        : oldData == null ? "ENTITY_CREATE_DEFAULT"
+                        : "ENTITY_CHANGE_DEFAULT";
+
+        log.info(
+                "Resolved template key='{}' for entityType='{}'. Operation={}",
+                TEMPLATE_KEY,
+                entityType,
+                newData == null ? "DELETE"
+                        : oldData == null ? "CREATE"
+                        : "UPDATE");
+
+        EntityChangeNotification<T> notification =
+                new EntityChangeNotification<>(TEMPLATE_KEY, entityType, oldData, newData);
+
+        log.info(
+                "Created EntityChangeNotification object. entityType='{}', templateKey='{}'",
+                entityType,
+                TEMPLATE_KEY);
 
         return Mono.fromCallable(() -> {
-            String payload = objectMapper.writeValueAsString(notification);
-            return payload;
-        }).flatMap(payload -> {
-            ProducerRecord<String, String> record = new ProducerRecord<>(emailTopic, TEMPLATE_KEY, payload);
 
-            return sender.send(Mono.just(SenderRecord.create(record, null))).next();
-        }).doOnNext(result -> {
+                    log.info(
+                            "Serializing notification payload. entityType='{}', templateKey='{}'",
+                            entityType,
+                            TEMPLATE_KEY);
 
-            if (result != null && result.recordMetadata() != null) {
+                    String payload = objectMapper.writeValueAsString(notification);
 
-                log.info("Kafka publish successful. entityType='{}', topic='{}', partition={}, offset={}", entityType, result.recordMetadata().topic(), result.recordMetadata().partition(), result.recordMetadata().offset());
+                    log.info(
+                            "Successfully serialized notification payload. entityType='{}', payloadLength={}",
+                            entityType,
+                            payload.length());
 
-            } else {
+                    log.info("Serialized payload: {}", payload);
 
-                log.warn("Kafka publish completed but metadata is null for entityType='{}'", entityType);
-            }
-        }).doOnSuccess(result -> log.info("Notification workflow completed successfully for entityType='{}'", entityType)).doOnError(error -> log.error("Notification workflow failed. entityType='{}', topic='{}', error='{}'", entityType, emailTopic, error.getMessage(), error)).onErrorResume(error -> {
+                    return payload;
+                })
+                .flatMap(payload -> {
 
-            log.error("Suppressed notification failure for entityType='{}'. Application flow will continue.", entityType, error);
+                    log.info(
+                            "Preparing Kafka record. entityType='{}', topic='{}', key='{}'",
+                            entityType,
+                            emailTopic,
+                            TEMPLATE_KEY);
 
-            return Mono.empty();
-        }).then();
+                    ProducerRecord<String, String> record =
+                            new ProducerRecord<>(emailTopic, TEMPLATE_KEY, payload);
+
+                    log.info(
+                            "Sending notification to Kafka. entityType='{}', topic='{}'",
+                            entityType,
+                            emailTopic);
+
+                    return sender.send(
+                                    Mono.just(SenderRecord.create(record, null)))
+                            .next();
+                })
+                .doOnNext(result -> {
+
+                    if (result != null && result.recordMetadata() != null) {
+
+                        log.info(
+                                "Kafka publish successful. entityType='{}', topic='{}', partition={}, offset={}",
+                                entityType,
+                                result.recordMetadata().topic(),
+                                result.recordMetadata().partition(),
+                                result.recordMetadata().offset());
+
+                    } else {
+
+                        log.info(
+                                "Warning-Kafka publish completed but metadata is null for entityType='{}'",
+                                entityType);
+                    }
+                })
+                .doOnSuccess(result ->
+                        log.info(
+                                "Notification workflow completed successfully for entityType='{}'",
+                                entityType))
+                .doOnError(error ->
+                        log.info(
+                                "Err-Notification workflow failed. entityType='{}', topic='{}', error='{}'",
+                                entityType,
+                                emailTopic,
+                                error.getMessage(),
+                                error))
+                .onErrorResume(error -> {
+
+                    log.info(
+                            "Err-Suppressed notification failure for entityType='{}'. Application flow will continue.",
+                            entityType,
+                            error);
+
+                    return Mono.empty();
+                })
+                .then();
     }
 }
