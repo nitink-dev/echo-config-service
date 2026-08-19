@@ -53,7 +53,9 @@ public class ConfigurationService {
                 .onErrorReturn(Optional.empty())
                 .flatMap(oldValue -> updateConfiguration(null, queryParams, configPayload)
                         .then(redisStore.deleteByKey(PATH_QA_DICOM_STORE))
-                        .then(notificationService.notifyEntityChange("dicomStore", oldValue.orElse(null), config))
+                        .then(notificationService.notifyEntityChange("dicomStore",
+                                oldValue.map(v -> (Object) Map.of(config.keySet().iterator().next(), v)).orElse(null),
+                                config))
                         .thenReturn(config));
     }
 

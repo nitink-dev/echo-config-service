@@ -84,6 +84,30 @@ class ConfigurationServiceTest {
         verify(notificationService, times(1)).notifyEntityChange(eq("dicomStore"), isNull(), eq(incomingMap));
     }
 
+    @Test
+    @DisplayName("update: update pathQA dicom store when a previous value exists")
+    void update_path_Qa_dicomStore_withPreviousValue() {
+
+        Map<String, String> queryParams = Map.of("region", "us-central1");
+        String key = "gcp-config.pathqa-store-url";
+        String oldUrl = "projects/test-project/locations/us-central1/datasets/test-dataset/dicomStores/old-dicomstore";
+        Map<String, Object> incomingMap = Map.of(key,
+                "projects/test-project/locations/us-central1/datasets/test-dataset/dicomStores/test-dicomstore"
+        );
+
+        given(configStore.get(anyString(), anyString())).willReturn(Mono.just(oldUrl));
+        given(configurationClient.updateConfig(isNull(), eq(queryParams), any(ConfigPayload.class)))
+                .willReturn(Mono.just(Map.of("updated", true)));
+        given(redisStore.deleteByKey(anyString())).willReturn(Mono.empty());
+        given(notificationService.notifyEntityChange(anyString(), any(), any())).willReturn(Mono.empty());
+
+        Mono<Map<String, Object>> result = configurationService.updatePathQaDicomStore(queryParams, incomingMap);
+
+        StepVerifier.create(result).expectNext(incomingMap).verifyComplete();
+
+        verify(notificationService, times(1)).notifyEntityChange(eq("dicomStore"), eq(Map.of(key, oldUrl)), eq(incomingMap));
+    }
+
 
     @Test
     @DisplayName("update: error while updating application configuration")
