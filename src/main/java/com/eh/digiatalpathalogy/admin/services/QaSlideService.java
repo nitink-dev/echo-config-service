@@ -57,8 +57,8 @@ public class QaSlideService {
         return qaSlideRepository.save(qaSlide)
                 .flatMap(saved -> redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
                         .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
-                        .thenReturn(new QaSlide(null, saved.barcode(), EncryptionUtils.decrypt(qaSlide.activationCode())))
-                        .then(notificationService.notifyEntityChange("qaSlide", null, saved))
+                        .then(notificationService.notifyEntityChange("qaSlide", null,
+                                new QaSlide(null, saved.barcode(), EncryptionUtils.decrypt(saved.activationCode()))))
                         .thenReturn(saved))
                 .doOnSuccess(saved -> log.info("Slide created successfully with barcode: {}", saved.barcode()))
                 .onErrorMap(DuplicateKeyException.class, ex -> {

@@ -1,6 +1,7 @@
 package com.eh.digiatalpathalogy.admin.services;
 
 import com.eh.digiatalpathalogy.admin.model.EntityChangeNotification;
+import com.eh.digiatalpathalogy.admin.model.NotificationEntityType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
@@ -27,7 +28,9 @@ public class NotificationService {
         this.objectMapper = objectMapper;
     }
 
-    public <T> Mono<Void> notifyEntityChange(String entityType, T oldData, T newData) {
+    public <T> Mono<Void> notifyEntityChange(String rawEntityType, T oldData, T newData) {
+
+        final String entityType = NotificationEntityType.toDisplayName(rawEntityType);
 
         log.info("Starting notification workflow. entityType='{}'", entityType);
 
