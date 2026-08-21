@@ -69,11 +69,10 @@ class QaSlideServiceTest {
     void create_success() {
         var request = newQaSlide();
         var saved = slide("id-100", request.barcode(), "Vsy6H0mbnuedkVATRrmhkji/DneagLfZEACPiNquNjOQQbRYLfdjGFYnVss=");
-        var expectedNotifiedData = slide(null, saved.barcode(), request.activationCode());
 
         when(qaSlideRepository.save(any(QaSlide.class))).thenReturn(Mono.just(saved));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
-        when(notificationService.notifyEntityChange(eq("qaSlide"), isNull(), eq(expectedNotifiedData))).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("qaSlide"), isNull(), eq(saved))).thenReturn(Mono.empty());
 
         try (MockedStatic<EncryptionUtils> mocked = mockStatic(EncryptionUtils.class)) {
             mocked.when(() -> EncryptionUtils.encrypt(anyString())).thenReturn(saved.activationCode());
@@ -85,7 +84,7 @@ class QaSlideServiceTest {
         }
 
         verify(redisStore,times(2)).deleteKeysByPattern(anyString());
-        verify(notificationService).notifyEntityChange(eq("qaSlide"), isNull(), eq(expectedNotifiedData));
+        verify(notificationService).notifyEntityChange(eq("qaSlide"), isNull(), eq(saved));
     }
 
     @Test
