@@ -87,7 +87,6 @@ class EnrichmentToolServiceTest {
     @Test
     @DisplayName("updateAppConfig: null payload → returns BAD_REQUEST")
     void updateAppConfig_nullPayload_returnsError() {
-
         StepVerifier.create(service.updateAppConfig("eh-dicom-receiver", null))
                 .expectError(HttpRequestException.class)
                 .verify();
@@ -125,7 +124,7 @@ class EnrichmentToolServiceTest {
         when(configurationClient.updateConfig(eq("eh-dicom-receiver"), isNull(), any()))
                 .thenReturn(Mono.just(Map.of("storescp.aetitle", "NEW_AET")));
         when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
-
+        when(notificationService.notifyEntityChange(anyString(), anyMap(), anyMap())).thenReturn(Mono.empty());
         StepVerifier.create(service.updateAppConfig(
                         "eh-dicom-receiver",
                         Map.of("aet", "NEW_AET", "port", 11112)))
@@ -162,7 +161,7 @@ class EnrichmentToolServiceTest {
         when(configurationClient.updateConfig(anyString(), isNull(), any()))
                 .thenReturn(Mono.just(Map.of("ok", true)));
         when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
-
+        when(notificationService.notifyEntityChange(anyString(), anyMap(), anyMap())).thenReturn(Mono.empty());
         StepVerifier.create(service.updateAppConfig("synapse", Map.of(
                         "receivingAppName", "APP1",
                         "synapseServerFolder", "/data"
@@ -185,7 +184,7 @@ class EnrichmentToolServiceTest {
         when(configurationClient.updateConfig(anyString(), isNull(), any()))
                 .thenReturn(Mono.just(Map.of("key", "value")));
         when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
-
+        when(notificationService.notifyEntityChange(anyString(), anyMap(), anyMap())).thenReturn(Mono.empty());
         StepVerifier.create(service.updateAppConfig(
                         "eh-email-service",
                         Map.of("emailTo", List.of("a@test.com", "b@test.com"))

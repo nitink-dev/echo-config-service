@@ -26,7 +26,7 @@ class KafkaEventDispatcherTest {
     @Mock
     private TopicHandler handler;
     @Mock
-    private KafkaSender<String, String> sender;
+    private KafkaSender<String, Object> sender;
 
     private KafkaEventDispatcher dispatcher;
     private KafkaEnvelope env;

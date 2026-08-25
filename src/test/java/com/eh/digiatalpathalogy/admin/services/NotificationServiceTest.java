@@ -29,13 +29,13 @@ import static org.mockito.Mockito.when;
 class NotificationServiceTest {
 
     @Mock
-    private KafkaSender<String, String> sender;
+    private KafkaSender<String, Object> sender;
 
     private NotificationService notificationService;
 
     @BeforeEach
     void setUp() throws Exception {
-        notificationService = new NotificationService(sender, new ObjectMapper());
+        notificationService = new NotificationService(sender);
         Field topicField = NotificationService.class.getDeclaredField("emailTopic");
         topicField.setAccessible(true);
         topicField.set(notificationService, "email-svc-topic");
@@ -47,9 +47,9 @@ class NotificationServiceTest {
 
         StepVerifier.create(notification).verifyComplete();
 
-        ArgumentCaptor<Mono<SenderRecord<String, String, Object>>> captor = ArgumentCaptor.forClass(Mono.class);
+        ArgumentCaptor<Mono<SenderRecord<String, Object, Object>>> captor = ArgumentCaptor.forClass(Mono.class);
         verify(sender).send(captor.capture());
-        ProducerRecord<String, String> record = captor.getValue().block();
+        ProducerRecord<String, Object> record = captor.getValue().block();
         return record.key();
     }
 

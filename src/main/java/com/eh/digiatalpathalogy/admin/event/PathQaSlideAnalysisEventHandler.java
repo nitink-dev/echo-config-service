@@ -13,17 +13,15 @@ import reactor.core.publisher.Mono;
  * and delegating processing to the SlideAnalysisReportService.
  */
 
-public class PathQaSlideAnalysisEventHandler implements TopicHandler {
+public class PathQaSlideAnalysisEventHandler implements TopicHandler<SlideAnalysisMessage> {
 
     private static final Logger log = LoggerFactory.getLogger(PathQaSlideAnalysisEventHandler.class);
 
     private final String topic;
-    private final ObjectMapper objectMapper;
     private final SlideAnalysisReportService slideAnalysisReportService;
 
-    public PathQaSlideAnalysisEventHandler(String topic, ObjectMapper objectMapper, SlideAnalysisReportService slideAnalysisReportService) {
+    public PathQaSlideAnalysisEventHandler(String topic, SlideAnalysisReportService slideAnalysisReportService) {
         this.topic = topic;
-        this.objectMapper = objectMapper;
         this.slideAnalysisReportService = slideAnalysisReportService;
         log.info("QaSlideAnalysisEventHandler initialized | topic={}", topic);
     }
@@ -34,16 +32,12 @@ public class PathQaSlideAnalysisEventHandler implements TopicHandler {
     }
 
     @Override
-    public Mono<Void> handle(KafkaEnvelope env) {
+    public Mono<Void> handle(KafkaEnvelope<SlideAnalysisMessage> env) {
 
-        return Mono.fromCallable(() -> objectMapper.readValue(env.payload(), SlideAnalysisMessage.class))
-                .doOnNext(msg -> log.debug("QA slide analysis event received | topic={} offset={} key={}", env.topic(), env.offset(), env.key()))
-                .flatMap(slideAnalysisReportService::processAnalysisRequest)
-                .doOnSuccess(v -> log.info("QA slide analysis processed successfully | offset={} key={}", env.offset(), env.key()))
-                .onErrorMap(ex -> {
-                    log.error("QA slide analysis processing failed | topic={} offset={} key={}", env.topic(), env.offset(), env.key(), ex);
-                    return new RuntimeException("Failed to process QA slide analysis event", ex);
-                })
-                .then();
+        return Mono.just( env.payload( ) ).doOnNext( msg -> log.debug( "QA slide analysis event received | topic={} offset={} key={}", env.topic( ), env.offset( ), env.key( ) ) ).flatMap( slideAnalysisReportService::processAnalysisRequest )
+                .doOnSuccess( v -> log.info( "QA slide analysis processed successfully | offset={} key={}", env.offset( ), env.key( ) ) ).onErrorMap( ex -> {
+                    log.error( "QA slide analysis processing failed | topic={} offset={} key={}", env.topic( ), env.offset( ), env.key( ), ex );
+                    return new RuntimeException( "Failed to process QA slide analysis event", ex );
+                } );
     }
 }

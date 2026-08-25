@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
  * Contract for handling Kafka events for a specific topic.
  * Implementations must be reactive, non-blocking, and idempotent.
  */
-public interface TopicHandler {
+public interface TopicHandler<T> {
 
 
     /**
@@ -23,5 +23,5 @@ public interface TopicHandler {
      * @param kafkaEnvelope Kafka message wrapper containing payload and metadata
      * @return Mono that completes when event processing finishes
      */
-    Mono<Void> handle(KafkaEnvelope kafkaEnvelope);
+    Mono<Void> handle(KafkaEnvelope<T> kafkaEnvelope);
 }

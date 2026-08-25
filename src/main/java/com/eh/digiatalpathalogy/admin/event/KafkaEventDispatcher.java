@@ -24,11 +24,11 @@ public class KafkaEventDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaEventDispatcher.class);
 
-    private final Map<String, TopicHandler> handlers;
-    private final KafkaSender<String, String> sender;
+    private final Map<String, TopicHandler<?>> handlers;
+    private final KafkaSender<String, Object> sender;
     private final String dltTopic = "dead-letter-topic";
 
-    public KafkaEventDispatcher(List<TopicHandler> handlerList, KafkaSender<String, String> sender) {
+    public KafkaEventDispatcher(List<TopicHandler<?>> handlerList, KafkaSender<String, Object> sender) {
         this.handlers = handlerList.stream().collect(Collectors.toMap(TopicHandler::topic, Function.identity()));
         this.sender = sender;
         log.info("KafkaEventDispatcher initialized with handlers={}, dltTopic={}", handlers.keySet(), dltTopic);
@@ -37,7 +37,7 @@ public class KafkaEventDispatcher {
     public Mono<Void> dispatch(KafkaEnvelope env) {
 
         log.debug("Dispatching Kafka event | topic={} partition={} offset={} key={}", env.topic(), env.partition(), env.offset(), env.key());
-        TopicHandler handler = handlers.get(env.topic());
+        TopicHandler<?> handler = handlers.get(env.topic());
         if (handler == null) {
             log.error("No TopicHandler registered | topic={} key={} offset={}", env.topic(), env.key(), env.offset());
             return Mono.error(new IllegalStateException("No handler registered for topic: " + env.topic()));
@@ -49,7 +49,7 @@ public class KafkaEventDispatcher {
     public Mono<Void> publishToDlt(KafkaEnvelope env, Throwable ex) {
 
         log.error("Publishing event to DLT | originalTopic={} partition={} offset={} key={} errorType={} errorMessage={}", env.topic(), env.partition(), env.offset(), env.key(), ex.getClass().getSimpleName(), ex.getMessage(), ex);
-        ProducerRecord<String, String> dltRecord = new ProducerRecord<>(dltTopic, env.key(), env.payload());
+        ProducerRecord<String, Object> dltRecord = new ProducerRecord<>(dltTopic, env.key(), env.payload());
         dltRecord.headers()
                 .add("x-original-topic", bytes(env.topic()))
                 .add("x-original-partition", bytes(String.valueOf(env.partition())))
