@@ -23,10 +23,10 @@ public class KafkaEventListener {
     private static final int RAILS = 32;
     private static final Duration PROCESSING_TIMEOUT = Duration.ofSeconds(30);
 
-    private final KafkaReceiver<String, String> receiver;
+    private final KafkaReceiver<String, Object> receiver;
     private final KafkaEventDispatcher kafkaEventDispatcher;
 
-    public KafkaEventListener(KafkaReceiver<String, String> receiver, KafkaEventDispatcher kafkaEventDispatcher) {
+    public KafkaEventListener(KafkaReceiver<String, Object> receiver, KafkaEventDispatcher kafkaEventDispatcher) {
         this.receiver = receiver;
         this.kafkaEventDispatcher = kafkaEventDispatcher;
     }

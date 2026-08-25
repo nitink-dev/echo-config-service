@@ -87,6 +87,9 @@ class EnrichmentToolServiceTest {
     @Test
     @DisplayName("updateAppConfig: null payload → returns BAD_REQUEST")
     void updateAppConfig_nullPayload_returnsError() {
+        when(configStore.getFilteredProperties("eh-dicom-receiver"))
+                .thenReturn(Mono.just(Map.of()));
+
         StepVerifier.create(service.updateAppConfig("eh-dicom-receiver", null))
                 .expectError(HttpRequestException.class)
                 .verify();
@@ -104,6 +107,9 @@ class EnrichmentToolServiceTest {
     @Test
     @DisplayName("updateAppConfig: payload contains extra keys → validation fails")
     void updateAppConfig_extraKeys_returnsError() {
+
+        when(configStore.getFilteredProperties("eh-dicom-receiver"))
+                .thenReturn(Mono.just(Map.of()));
 
         StepVerifier.create(service.updateAppConfig(
                         "eh-dicom-receiver",
