@@ -154,12 +154,12 @@ public class HttpRequestHandler {
         }
         if (ex instanceof CallNotPermittedException) {
             String message = "Service temporarily unavailable (circuit breaker open)";
-            log.error("Circuit breaker open: {}", ex.getMessage(), ex);
+            log.error("Circuit breaker open: {}", ex.getMessage());
             return Mono.error(new HttpRequestException(HttpStatus.SERVICE_UNAVAILABLE, message));
         }
         if (ex instanceof WebClientRequestException reqEx) {
             String message = "Network error while calling downstream service: " + reqEx.getMessage();
-            log.error(message, reqEx);
+            log.error(message);
             return Mono.error(new HttpRequestException(HttpStatus.SERVICE_UNAVAILABLE, message));
         }
         if (ex instanceof WebClientResponseException resEx) {
@@ -178,17 +178,17 @@ public class HttpRequestHandler {
         }
         if (ex instanceof TimeoutException || ex instanceof SocketTimeoutException) {
             String message = "Request timed out while calling downstream service";
-            log.error(message, ex);
+            log.error(message);
             return Mono.error(new HttpRequestException(HttpStatus.GATEWAY_TIMEOUT, message));
         }
         if (ex instanceof IllegalArgumentException || ex instanceof NullPointerException) {
             String message = "Invalid request data: " + ex.getMessage();
-            log.warn(message, ex);
+            log.warn(message);
             return Mono.error(new HttpRequestException(HttpStatus.BAD_REQUEST, message));
         }
 
         String message = "Unexpected internal error: " + ex.getMessage();
-        log.error(message, ex);
+        log.error(message);
         return Mono.error(new HttpRequestException(HttpStatus.INTERNAL_SERVER_ERROR, message));
     }
 

@@ -8,7 +8,6 @@ import com.eh.digiatalpathalogy.admin.model.QaSlideDetails;
 import com.eh.digiatalpathalogy.admin.repository.QaSlideRepository;
 import com.eh.digiatalpathalogy.admin.util.EncryptionUtils;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
-import com.eh.digiatalpathalogy.admin.services.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;

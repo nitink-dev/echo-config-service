@@ -30,16 +30,14 @@ public class KafkaMessagingConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaMessagingConfig.class);
 
-    @Value("${kafka.topic.pathqa}")
-    private String qaSlideTopic;
-    @Value("${kafka.topic.scan-progress}")
-    private String scanProgressTopic;
     @Value("${spring.kafka.consumer.group-id:admin-consumer-group}")
     private String consumerGroupId;
 
+    private final KafkaTopicConfig kafkaTopicConfig;
     private final KafkaProperties kafkaProperties;
 
-    public KafkaMessagingConfig(KafkaProperties kafkaProperties) {
+    public KafkaMessagingConfig( KafkaTopicConfig kafkaTopicConfig, KafkaProperties kafkaProperties) {
+        this.kafkaTopicConfig = kafkaTopicConfig;
         this.kafkaProperties = kafkaProperties;
     }
 
@@ -58,7 +56,7 @@ public class KafkaMessagingConfig {
         configProps.put( JsonDeserializer.TYPE_MAPPINGS, String.join( ",", "path-qa:com.eh.digiatalpathalogy.admin.model.SlideAnalysisMessage", "scan-progress:com.eh.digiatalpathalogy.admin.model.scanstatus.SlideScanProgressEvent") );
 
         return ReceiverOptions.<String, Object>create(configProps)
-                .subscription(List.of(qaSlideTopic, scanProgressTopic))
+                .subscription(List.of( kafkaTopicConfig.getPathqa( ), kafkaTopicConfig.getScanProgress( )))
                 .commitInterval(Duration.ofSeconds(1))
                 .commitBatchSize(200);
     }
@@ -83,12 +81,12 @@ public class KafkaMessagingConfig {
 
     @Bean
     public PathQaSlideAnalysisEventHandler qaSlideHandler(SlideAnalysisReportService service) {
-        return new PathQaSlideAnalysisEventHandler(qaSlideTopic, service);
+        return new PathQaSlideAnalysisEventHandler( kafkaTopicConfig.getPathqa( ), service);
     }
 
     @Bean
     public SlideScanProgressEventHandler slideScanProgressHandler(SlideScanStatusService slideScanStatusService) {
-        return new SlideScanProgressEventHandler(scanProgressTopic,  slideScanStatusService);
+        return new SlideScanProgressEventHandler( kafkaTopicConfig.getScanProgress( ),  slideScanStatusService);
     }
 
 }

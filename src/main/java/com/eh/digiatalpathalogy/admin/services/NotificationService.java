@@ -1,11 +1,11 @@
 package com.eh.digiatalpathalogy.admin.services;
 
+import com.eh.digiatalpathalogy.admin.config.KafkaTopicConfig;
 import com.eh.digiatalpathalogy.admin.model.EntityChangeNotification;
 import com.eh.digiatalpathalogy.admin.model.NotificationEntityType;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.kafka.sender.KafkaSender;
@@ -17,12 +17,11 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger( NotificationService.class );
 
     private final KafkaSender< String, Object > sender;
+    private final KafkaTopicConfig kafkaTopicConfig;
 
-    @Value( "${kafka.topic.email}" )
-    private String emailTopic;
-
-    public NotificationService ( KafkaSender< String, Object > sender ) {
+    public NotificationService ( KafkaSender< String, Object > sender, KafkaTopicConfig kafkaTopicConfig ) {
         this.sender = sender;
+        this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
     public < T > Mono< Void > notifyEntityChange ( String rawEntityType, T oldData, T newData ) {
@@ -41,9 +40,9 @@ public class NotificationService {
                     return notification;
                 } ).flatMap( payload -> {
 
-                    log.info( "Preparing Kafka record. entityType='{}', topic='{}', key='{}'", entityType, emailTopic, TEMPLATE_KEY );
-                    ProducerRecord< String, Object > record = new ProducerRecord<>( emailTopic, TEMPLATE_KEY, payload );
-                    log.info( "Sending notification to Kafka. entityType='{}', topic='{}'", entityType, emailTopic );
+                    log.info( "Preparing Kafka record. entityType='{}', topic='{}', key='{}'", entityType, kafkaTopicConfig.getEmail(), TEMPLATE_KEY );
+                    ProducerRecord< String, Object > record = new ProducerRecord<>( kafkaTopicConfig.getEmail( ), TEMPLATE_KEY, payload );
+                    log.info( "Sending notification to Kafka. entityType='{}', topic='{}'", entityType, kafkaTopicConfig.getEmail() );
                     return sender.send( Mono.just( SenderRecord.create( record, null ) ) ).next( );
                 } ).doOnNext( result -> {
 
@@ -52,7 +51,8 @@ public class NotificationService {
                     } else {
                         log.info( "Warning-Kafka publish completed but metadata is null for entityType='{}'", entityType );
                     }
-                } ).doOnSuccess( result -> log.info( "Notification workflow completed successfully for entityType='{}'", entityType ) ).doOnError( error -> log.info( "Err-Notification workflow failed. entityType='{}', topic='{}', error='{}'", entityType, emailTopic, error.getMessage( ), error ) )
+                } ).doOnSuccess( result -> log.info( "Notification workflow completed successfully for entityType='{}'", entityType ) ).doOnError( error -> log.info( "Err-Notification workflow failed. entityType='{}', topic='{}', error='{}'", entityType, kafkaTopicConfig.getEmail(), error.getMessage( ),
+                        error ) )
                 .onErrorResume( error -> {
                     log.info( "Err-Suppressed notification failure for entityType='{}'. Application flow will continue.", entityType, error );
                     return Mono.empty( );

@@ -147,7 +147,7 @@ public class EnrichmentToolService {
                     return merged;
                 })
                 .doOnSuccess(cp -> log.info("Configuration for '{}' updated successfully (all categories)", application))
-                .doOnError(ex -> log.error("Failed to update configuration for '{}' (one or more categories)", application, ex));
+                .doOnError(ex -> log.error("Failed to update configuration for '{}' (one or more categories) with error :: {}", application, ex.getMessage()));
     }
 
     /**

@@ -1,10 +1,12 @@
 package com.eh.digiatalpathalogy.admin.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 
 import java.util.Map;
 
 @ConfigurationProperties(prefix = "tools")
+@RefreshScope
 public class EnrichmentToolConfig {
 
     private Map<String, AppMapping> applications;

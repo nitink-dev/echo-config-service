@@ -7,7 +7,6 @@ import com.eh.digiatalpathalogy.admin.exception.InternalServerException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
 import com.eh.digiatalpathalogy.admin.repository.SlideScannerRepository;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
-import com.eh.digiatalpathalogy.admin.services.NotificationService;
 import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

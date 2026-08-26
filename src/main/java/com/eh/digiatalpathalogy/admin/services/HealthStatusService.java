@@ -57,7 +57,7 @@ public class HealthStatusService {
                 .flatMap(this::checkHttpEndpoint, 8)
                 .collectList()
                 .doOnSuccess(r -> log.info("Completed HTTP health checks"))
-                .doOnError(ex -> log.error("HTTP health checks failed", ex));
+                .doOnError(ex -> log.error("HTTP health checks failed :: {}", ex.getMessage()));
     }
 
     private Mono<HealthStatusResult> checkHttpEndpoint(HostInfo configureHostInfo) {
@@ -107,7 +107,7 @@ public class HealthStatusService {
                 .flatMap(this::checkIcmpEndpoint, 4)
                 .collectList()
                 .doOnSuccess(r -> log.info("Completed ICMP health checks"))
-                .doOnError(ex -> log.error("ICMP health checks failed", ex));
+                .doOnError(ex -> log.error("ICMP health checks failed :: {}", ex.getMessage()));
     }
 
     private Mono<HealthStatusResult> checkIcmpEndpoint(HealthTargetsProperties.Target target) {

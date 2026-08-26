@@ -1,6 +1,7 @@
 package com.eh.digiatalpathalogy.admin.config.auth;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;

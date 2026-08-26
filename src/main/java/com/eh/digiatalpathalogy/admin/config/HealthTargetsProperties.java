@@ -2,11 +2,13 @@ package com.eh.digiatalpathalogy.admin.config;
 
 import com.eh.digiatalpathalogy.admin.model.HostInfo;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 
 import java.time.Duration;
 import java.util.*;
 
 @ConfigurationProperties(prefix = "health")
+@RefreshScope
 public class HealthTargetsProperties {
     private Set<HostInfo> microservices = new LinkedHashSet<>();
     private List<Target> thirdParties = new ArrayList<>();

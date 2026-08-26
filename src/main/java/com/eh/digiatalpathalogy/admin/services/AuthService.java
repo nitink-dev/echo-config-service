@@ -8,7 +8,6 @@ import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -31,7 +30,6 @@ import java.util.stream.Collectors;
 import static com.eh.digiatalpathalogy.admin.constant.RedisCacheKey.AUTH_CONFIG;
 
 @Service
-@RefreshScope
 public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);

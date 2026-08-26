@@ -27,12 +27,13 @@ public class ConfigurationService {
     private final NotificationService notificationService;
     private final ConfigStore configStore;
 
-    public ConfigurationService(ConfigurationClient configurationClient, RedisEntityStore redisStore, NotificationService notificationService, ConfigStore configStore) {
+    public ConfigurationService ( ConfigurationClient configurationClient, RedisEntityStore redisStore, NotificationService notificationService, ConfigStore configStore ) {
         this.configurationClient = configurationClient;
         this.redisStore = redisStore;
         this.notificationService = notificationService;
         this.configStore = configStore;
     }
+
 
     public Mono<Map<String, Object>> updateConfiguration(String application,
                                                          Map<String, String> queryParams,

@@ -1,6 +1,6 @@
 package com.eh.digiatalpathalogy.admin.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.eh.digiatalpathalogy.admin.config.KafkaTopicConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,13 +17,11 @@ import reactor.kafka.sender.SenderRecord;
 import reactor.kafka.sender.SenderResult;
 import reactor.test.StepVerifier;
 
-import java.lang.reflect.Field;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -31,14 +29,15 @@ class NotificationServiceTest {
     @Mock
     private KafkaSender<String, Object> sender;
 
+    @Mock
+    private KafkaTopicConfig kafkaTopicConfig;
+
     private NotificationService notificationService;
 
     @BeforeEach
     void setUp() throws Exception {
-        notificationService = new NotificationService(sender);
-        Field topicField = NotificationService.class.getDeclaredField("emailTopic");
-        topicField.setAccessible(true);
-        topicField.set(notificationService, "email-svc-topic");
+        notificationService = new NotificationService(sender, kafkaTopicConfig);
+        lenient( ).when( kafkaTopicConfig.getEmail( ) ).thenReturn( "email-svc-topic" );
     }
 
     @SuppressWarnings("unchecked")
