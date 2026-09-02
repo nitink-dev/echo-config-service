@@ -44,7 +44,11 @@ public class KafkaEventListener {
                 .groupBy(env -> stripe(env.barcodeKey()), RAILS)
                 .flatMap(groupedFlux -> groupedFlux.concatMap(this::processAndCommit), RAILS)
                 .doOnSubscribe(s -> log.info("Kafka consumption stream subscribed successfully"))
-                .doOnError(ex -> log.error("Kafka consumption stream failed – restarting", ex))
+                .doOnError(ex -> {
+                    log.error("Kafka consumption stream failed – restarting");
+                    log.error("Exception class: {}", ex.getClass().getName());
+                    log.error("Message: {}", ex.getMessage(), ex);
+                })
                 .retry()
                 .subscribe();
     }

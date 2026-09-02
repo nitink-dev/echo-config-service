@@ -54,7 +54,7 @@ public class KafkaMessagingConfig {
         configProps.put( JsonDeserializer.USE_TYPE_INFO_HEADERS, true );
         configProps.put( JsonDeserializer.TRUSTED_PACKAGES, "*" );
         configProps.put( JsonDeserializer.TYPE_MAPPINGS, String.join( ",", "path-qa:com.eh.digiatalpathalogy.admin.model.SlideAnalysisMessage", "scan-progress:com.eh.digiatalpathalogy.admin.model.scanstatus.SlideScanProgressEvent") );
-
+        configProps.put( ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class );
         return ReceiverOptions.<String, Object>create(configProps)
                 .subscription(List.of( kafkaTopicConfig.getPathqa( ), kafkaTopicConfig.getScanProgress( )))
                 .commitInterval(Duration.ofSeconds(1))
