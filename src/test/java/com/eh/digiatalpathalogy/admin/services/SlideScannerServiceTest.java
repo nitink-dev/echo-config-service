@@ -120,7 +120,7 @@ class SlideScannerServiceTest {
         SlideScanner updatedInDb = scanner("SS12118");
         updatedInDb.setResearch(Boolean.TRUE);
 
-        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class))).thenReturn(Mono.just(updatedInDb));
+        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class), eq(true))).thenReturn(Mono.just(updatedInDb));
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class))).thenReturn(Mono.just(updatedInDb));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
         when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
@@ -132,7 +132,7 @@ class SlideScannerServiceTest {
                 .verifyComplete();
 
         verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
-                payload.getDepartment() == null && payload.getDicomStore() == null));
+                payload.getDepartment() == null && payload.getDicomStore() == null), eq(true));
         verify(notificationService).notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class));
     }
 
@@ -367,7 +367,7 @@ class SlideScannerServiceTest {
     void update_findAndModifyEmpty_notFound() {
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class)))
                 .thenReturn(Mono.just(scanner("unavailable-device-serial-number")));
-        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class)))
+        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class), eq(true)))
                 .thenReturn(Mono.empty());
 
         StepVerifier.create(service.updateByDeviceSerialNumber("unavailable-device-serial-number", new SlideScanner()))
@@ -390,7 +390,7 @@ class SlideScannerServiceTest {
 
         when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class)))
                 .thenReturn(Mono.just(scanner("SS12118")));
-        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class)))
+        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class), eq(true)))
                 .thenReturn(Mono.just(updated));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
         when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
@@ -406,7 +406,7 @@ class SlideScannerServiceTest {
         // ensure service nullified id + deviceSerialNumber in payload before passing to repo
         verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
                 payload.getId() == null && payload.getDeviceSerialNumber() == null
-        ));
+        ), eq(true));
         verify(notificationService).notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class));
     }
 
@@ -421,7 +421,7 @@ class SlideScannerServiceTest {
         SlideScanner updatedInDb = scanner("SS12118");
         updatedInDb.setResearch(Boolean.TRUE);
 
-        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class)))
+        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class), eq(true)))
                 .thenReturn(Mono.just(updatedInDb));
         when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
 
@@ -434,7 +434,7 @@ class SlideScannerServiceTest {
 
         verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
                 "DeptY".equals(payload.getDepartment()) && Objects.nonNull(payload.getDicomStore()) && payload.getDicomStore().isBlank()
-        ));
+        ), eq(true));
     }
 
     @Test

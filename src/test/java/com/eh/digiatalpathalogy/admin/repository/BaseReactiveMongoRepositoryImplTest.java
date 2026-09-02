@@ -58,6 +58,8 @@ class BaseReactiveMongoRepositoryImplTest {
 
     record PatchRecord(String name, String blank, Integer age) { }
 
+    record PatchWithIdRecord(String id, String deviceSerialNumber, String name) { }
+
     record BadRecord(String name) {
         @Override public String name() { throw new RuntimeException("boom"); }
     }
@@ -293,18 +295,62 @@ class BaseReactiveMongoRepositoryImplTest {
         }
     }
 
+    @Nested
+    class BuildUpdateIncludeNulls {
+
+        @Test
+        @DisplayName("buildUpdate(source, trimStrings, includeNulls=true): sets null fields; still skips blank strings")
+        void buildUpdate_includeNulls_setsNullFields() {
+            PatchPojo patch = new PatchPojo(null, "   ", 30);
+
+            Update update = repo.buildUpdate(patch, true, true);
+            Document set = setDoc(update);
+
+            assertThat(set.containsKey("name")).isTrue();
+            assertThat(set.get("name")).isNull();
+            assertThat(set.containsKey("blank")).isFalse();
+            assertThat(set.getInteger("age")).isEqualTo(30);
+        }
+
+        @Test
+        @DisplayName("buildUpdate(source, trimStrings, includeNulls=true): never nulls id/deviceSerialNumber")
+        void buildUpdate_includeNulls_neverNullsIdFields() {
+            PatchWithIdRecord patch = new PatchWithIdRecord(null, null, null);
+
+            Update update = repo.buildUpdate(patch, true, true);
+            Document set = setDoc(update);
+
+            assertThat(set.containsKey("id")).isFalse();
+            assertThat(set.containsKey("deviceSerialNumber")).isFalse();
+            assertThat(set.containsKey("name")).isTrue();
+            assertThat(set.get("name")).isNull();
+        }
+
+        @Test
+        @DisplayName("buildUpdate(source, trimStrings, includeNulls=false): behaves like the 2-arg overload")
+        void buildUpdate_includeNullsFalse_skipsNulls() {
+            PatchPojo patch = new PatchPojo(null, "   ", 30);
+
+            Update update = repo.buildUpdate(patch, true, false);
+            Document set = setDoc(update);
+
+            assertThat(set.containsKey("name")).isFalse();
+            assertThat(set.getInteger("age")).isEqualTo(30);
+        }
+    }
+
     @Test
     @DisplayName("Reflection example: invoke private maybeSet(...) to cover branches explicitly")
     void reflection_invokePrivateMaybeSet() throws Exception {
         Update update = new Update();
 
         Method maybeSet = BaseReactiveMongoRepositoryImpl.class
-                .getDeclaredMethod("maybeSet", Update.class, String.class, Object.class, boolean.class);
+                .getDeclaredMethod("maybeSet", Update.class, String.class, Object.class, boolean.class, boolean.class);
         maybeSet.setAccessible(true);
-        maybeSet.invoke(repo, update, "a", null, true);
-        maybeSet.invoke(repo, update, "b", "   ", true);
-        maybeSet.invoke(repo, update, "c", "  hi  ", true);
-        maybeSet.invoke(repo, update, "d", 123, true);
+        maybeSet.invoke(repo, update, "a", null, true, false);
+        maybeSet.invoke(repo, update, "b", "   ", true, false);
+        maybeSet.invoke(repo, update, "c", "  hi  ", true, false);
+        maybeSet.invoke(repo, update, "d", 123, true, false);
 
         Document set = setDoc(update);
         assertThat(set.containsKey("a")).isFalse();

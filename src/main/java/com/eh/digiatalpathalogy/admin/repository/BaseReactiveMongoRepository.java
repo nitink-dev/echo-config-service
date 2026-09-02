@@ -9,6 +9,8 @@ public interface BaseReactiveMongoRepository<T> {
 
     Mono<T> findAndModify(Query query, T update);
 
+    Mono<T> findAndModify(Query query, T update, boolean includeNulls);
+
     Mono<T> saveOrUpdate(Query query, T update);
 
     Mono<T> saveOrUpdate(Query query, Update update, Class<T> clazz);

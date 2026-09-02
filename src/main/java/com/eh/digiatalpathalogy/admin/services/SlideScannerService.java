@@ -118,7 +118,7 @@ public class SlideScannerService {
 
         Query query = buildDeviceSerialNumberQuery(deviceSerialNumber);
         return getByDeviceSerialNumber(deviceSerialNumber)
-                .flatMap(oldData -> slideScannerRepository.findAndModify(query, slideScanner)
+                .flatMap(oldData -> slideScannerRepository.findAndModify(query, slideScanner, true)
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
                         .flatMap(updated -> {
                             Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")

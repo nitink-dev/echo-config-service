@@ -16,6 +16,7 @@ import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.Objects;
+import java.util.Set;
 
 @Repository
 public class BaseReactiveMongoRepositoryImpl<T> implements BaseReactiveMongoRepository<T> {
@@ -46,6 +47,16 @@ public class BaseReactiveMongoRepositoryImpl<T> implements BaseReactiveMongoRepo
         Objects.requireNonNull(query, ERR_QUERY_NO_NULL);
         Objects.requireNonNull(source, ERR_SOURCE_NO_NULL);
         Update update = buildUpdate(source);
+        @SuppressWarnings("unchecked")
+        Class<T> clazz = (Class<T>) source.getClass();
+        return findAndModify(query, update, clazz);
+    }
+
+    @Override
+    public Mono<T> findAndModify(Query query, T source, boolean includeNulls) {
+        Objects.requireNonNull(query, ERR_QUERY_NO_NULL);
+        Objects.requireNonNull(source, ERR_SOURCE_NO_NULL);
+        Update update = buildUpdate(source, true, includeNulls);
         @SuppressWarnings("unchecked")
         Class<T> clazz = (Class<T>) source.getClass();
         return findAndModify(query, update, clazz);
@@ -98,16 +109,20 @@ public class BaseReactiveMongoRepositoryImpl<T> implements BaseReactiveMongoRepo
     }
 
     public Update buildUpdate(Object source, boolean trimStrings) {
+        return buildUpdate(source, trimStrings, false);
+    }
+
+    public Update buildUpdate(Object source, boolean trimStrings, boolean includeNulls) {
         Objects.requireNonNull(source, ERR_SOURCE_NO_NULL);
         Class<?> type = source.getClass();
-        return type.isRecord() ? buildFromRecord(source, trimStrings) : buildFromPojo(source, trimStrings);
+        return type.isRecord() ? buildFromRecord(source, trimStrings, includeNulls) : buildFromPojo(source, trimStrings, includeNulls);
     }
 
     public Update buildUpdate(Object source) {
         return buildUpdate(source, true);
     }
 
-    private Update buildFromRecord(Object patch, boolean trimStrings) {
+    private Update buildFromRecord(Object patch, boolean trimStrings, boolean includeNulls) {
         Update update = new Update();
         RecordComponent[] components = patch.getClass().getRecordComponents();
 
@@ -121,12 +136,12 @@ public class BaseReactiveMongoRepositoryImpl<T> implements BaseReactiveMongoRepo
             } catch (ReflectiveOperationException e) {
                 throw new InternalServerException("Failed to access record component: " + field, e);
             }
-            maybeSet(update, field, value, trimStrings);
+            maybeSet(update, field, value, trimStrings, includeNulls);
         }
         return update;
     }
 
-    private Update buildFromPojo(Object patch, boolean trimStrings) {
+    private Update buildFromPojo(Object patch, boolean trimStrings, boolean includeNulls) {
         Update update = new Update();
         try {
             for (PropertyDescriptor pd : Introspector.getBeanInfo(patch.getClass(), Object.class).getPropertyDescriptors()) {
@@ -137,7 +152,7 @@ public class BaseReactiveMongoRepositoryImpl<T> implements BaseReactiveMongoRepo
                 String field = pd.getName();
                 Object value = reader.invoke(patch);
 
-                maybeSet(update, field, value, trimStrings);
+                maybeSet(update, field, value, trimStrings, includeNulls);
             }
         } catch (Exception e) {
             throw new InternalServerException("Failed to introspect POJO: " + patch.getClass().getName(), e);
@@ -145,8 +160,15 @@ public class BaseReactiveMongoRepositoryImpl<T> implements BaseReactiveMongoRepo
         return update;
     }
 
-    private void maybeSet(Update update, String field, Object value, boolean trimStrings) {
-        if (value == null) return;
+    private static final Set<String> NEVER_NULL_FIELDS = Set.of("id", "deviceSerialNumber");
+
+    private void maybeSet(Update update, String field, Object value, boolean trimStrings, boolean includeNulls) {
+        if (value == null) {
+            if (includeNulls && !NEVER_NULL_FIELDS.contains(field)) {
+                update.set(field, null);
+            }
+            return;
+        }
 
         if (value instanceof String s) {
             if (!StringUtils.hasText(s))
