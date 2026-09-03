@@ -33,7 +33,7 @@ public class SlideScanner {
     private Boolean connected;
     private String remoteAeTitle;
     private String remoteHost;
-    private int remotePort;
+    private Integer remotePort;
     private String storageStrategy;
 
     public String getId() {
@@ -164,7 +164,7 @@ public class SlideScanner {
         return remoteHost;
     }
 
-    public int getRemotePort() {
+    public Integer getRemotePort() {
         return remotePort;
     }
 
