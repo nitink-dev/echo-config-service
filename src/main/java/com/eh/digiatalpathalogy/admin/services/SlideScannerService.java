@@ -109,8 +109,11 @@ public class SlideScannerService {
         final boolean incomingResearch = Boolean.TRUE.equals(slideScanner.getResearch());
         final String incomingDicomStore = slideScanner.getDicomStore();
 
+        log.info("updateByDeviceSerialNumber: START DeviceSerialNumber={} incomingPatch={}", deviceSerialNumber, describe(slideScanner));
+
         Query query = buildDeviceSerialNumberQuery(deviceSerialNumber);
         return getByDeviceSerialNumber(deviceSerialNumber)
+                .doOnNext(oldData -> log.info("updateByDeviceSerialNumber: fetched oldData DeviceSerialNumber={} oldData={}", deviceSerialNumber, describe(oldData)))
                 .flatMap(oldData -> {
                     fillMissingFields(slideScanner, oldData);
                     slideScanner.setId(null);
@@ -119,10 +122,14 @@ public class SlideScannerService {
                     if (incomingResearch && StringUtils.hasText(incomingDicomStore)) {
                         slideScanner.setDepartment(null);
                         slideScanner.setDicomStore(null);
+                        log.info("updateByDeviceSerialNumber: research+dicomStore clear rule fired DeviceSerialNumber={}", deviceSerialNumber);
                     }
+
+                    log.info("updateByDeviceSerialNumber: patch after merge (this is what gets $set to Mongo) DeviceSerialNumber={} mergedPatch={}", deviceSerialNumber, describe(slideScanner));
 
                     return slideScannerRepository.findAndModify(query, slideScanner, true)
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
+                        .doOnNext(updated -> log.info("updateByDeviceSerialNumber: Mongo findAndModify result DeviceSerialNumber={} updated={}", deviceSerialNumber, describe(updated)))
                         .flatMap(updated -> {
                             Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
                                     .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
@@ -130,6 +137,7 @@ public class SlideScannerService {
                             Mono<SlideScanner> result = incomingResearch ? getByDeviceSerialNumber(deviceSerialNumber) : Mono.just(updated);
                             return Mono.whenDelayError(invalidateCache)
                                     .then(result)
+                                    .doOnNext(finalResult -> log.info("updateByDeviceSerialNumber: finalResult DeviceSerialNumber={} finalResult={}", deviceSerialNumber, describe(finalResult)))
                                     .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult)
                                             .thenReturn(finalResult));
                         });
@@ -152,6 +160,30 @@ public class SlideScannerService {
         if (patch.getVendor() == null) patch.setVendor(existing.getVendor());
         if (patch.getResearch() == null) patch.setResearch(existing.getResearch());
         if (patch.getConnected() == null) patch.setConnected(existing.getConnected());
+    }
+
+    private String describe(SlideScanner s) {
+        if (s == null) return "null";
+        return "{id=" + s.getId()
+                + ", deviceId=" + s.getDeviceId()
+                + ", deviceSerialNumber=" + s.getDeviceSerialNumber()
+                + ", name=" + s.getName()
+                + ", model=" + s.getModel()
+                + ", location=" + s.getLocation()
+                + ", department=" + s.getDepartment()
+                + ", dicomStore=" + s.getDicomStore()
+                + ", aeTitle=" + s.getAeTitle()
+                + ", port=" + s.getPort()
+                + ", hospitalName=" + s.getHospitalName()
+                + ", ipAddress=" + s.getIpAddress()
+                + ", vendor=" + s.getVendor()
+                + ", research=" + s.getResearch()
+                + ", connected=" + s.getConnected()
+                + ", remoteAeTitle=" + s.getRemoteAeTitle()
+                + ", remoteHost=" + s.getRemoteHost()
+                + ", remotePort=" + s.getRemotePort()
+                + ", storageStrategy=" + s.getStorageStrategy()
+                + "}";
     }
 
     private Query buildDeviceSerialNumberQuery(String deviceSerialNumber) {

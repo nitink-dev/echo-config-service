@@ -137,6 +137,42 @@ class SlideScannerServiceTest {
     }
 
     @Test
+    @DisplayName("updateByDeviceSerialNumber() → partial patch with only one field set → other fields preserved from existing record")
+    void update_partialPatch_preservesOmittedFields() {
+        SlideScanner existing = scanner("SS12118");
+
+        SlideScanner patch = new SlideScanner();
+        patch.setName("Updated-Name-Only");
+
+        SlideScanner updatedInDb = scanner("SS12118");
+        updatedInDb.setName("Updated-Name-Only");
+
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class))).thenReturn(Mono.just(existing));
+        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class), eq(true))).thenReturn(Mono.just(updatedInDb));
+        when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
+
+        StepVerifier.create(service.updateByDeviceSerialNumber("SS12118", patch))
+                .expectNextMatches(sc -> "Updated-Name-Only".equals(sc.getName()))
+                .verifyComplete();
+
+        verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
+                "Updated-Name-Only".equals(payload.getName())
+                        && "GT450DX".equals(payload.getModel())
+                        && "Evanston".equals(payload.getLocation())
+                        && "digital-pathology-dataset".equals(payload.getDepartment())
+                        && "projects/p1/locations/l1/datasets/d1/dicomStores/store1".equals(payload.getDicomStore())
+                        && "SVS_STORE_SCP".equals(payload.getAeTitle())
+                        && "1010".equals(payload.getPort())
+                        && "Evanston Hospital".equals(payload.getHospitalName())
+                        && "10.0.0.10".equals(payload.getIpAddress())
+                        && "Acme".equals(payload.getVendor())
+                        && Boolean.FALSE.equals(payload.getResearch())
+                        && Boolean.TRUE.equals(payload.getConnected())
+        ), eq(true));
+    }
+
+    @Test
     @DisplayName("updateByDeviceSerialNumber() → blank deviceSerialNumber → BAD_REQUEST")
     void update_blankDeviceId_badRequest() {
         SlideScanner patch = new SlideScanner();
