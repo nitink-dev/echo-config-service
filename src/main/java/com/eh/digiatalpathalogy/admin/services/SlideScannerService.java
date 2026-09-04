@@ -108,17 +108,20 @@ public class SlideScannerService {
         }
         final boolean incomingResearch = Boolean.TRUE.equals(slideScanner.getResearch());
         final String incomingDicomStore = slideScanner.getDicomStore();
-        slideScanner.setId(null);
-        slideScanner.setDeviceSerialNumber(null);
-
-        if (incomingResearch && StringUtils.hasText(incomingDicomStore)) {
-            slideScanner.setDepartment(null);
-            slideScanner.setDicomStore(null);
-        }
 
         Query query = buildDeviceSerialNumberQuery(deviceSerialNumber);
         return getByDeviceSerialNumber(deviceSerialNumber)
-                .flatMap(oldData -> slideScannerRepository.findAndModify(query, slideScanner, true)
+                .flatMap(oldData -> {
+                    fillMissingFields(slideScanner, oldData);
+                    slideScanner.setId(null);
+                    slideScanner.setDeviceSerialNumber(null);
+
+                    if (incomingResearch && StringUtils.hasText(incomingDicomStore)) {
+                        slideScanner.setDepartment(null);
+                        slideScanner.setDicomStore(null);
+                    }
+
+                    return slideScannerRepository.findAndModify(query, slideScanner, true)
                         .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
                         .flatMap(updated -> {
                             Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
@@ -129,11 +132,27 @@ public class SlideScannerService {
                                     .then(result)
                                     .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult)
                                             .thenReturn(finalResult));
-                        }))
+                        });
+                })
                 .doOnSuccess(updated -> log.info("Slide scanner updated successfully: DeviceSerialNumber={}", updated.getDeviceSerialNumber()))
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));
     }
 
+    private void fillMissingFields(SlideScanner patch, SlideScanner existing) {
+        if (patch.getDeviceId() == null) patch.setDeviceId(existing.getDeviceId());
+        if (patch.getName() == null) patch.setName(existing.getName());
+        if (patch.getModel() == null) patch.setModel(existing.getModel());
+        if (patch.getLocation() == null) patch.setLocation(existing.getLocation());
+        if (patch.getDepartment() == null) patch.setDepartment(existing.getDepartment());
+        if (patch.getDicomStore() == null) patch.setDicomStore(existing.getDicomStore());
+        if (patch.getAeTitle() == null) patch.setAeTitle(existing.getAeTitle());
+        if (patch.getPort() == null) patch.setPort(existing.getPort());
+        if (patch.getHospitalName() == null) patch.setHospitalName(existing.getHospitalName());
+        if (patch.getIpAddress() == null) patch.setIpAddress(existing.getIpAddress());
+        if (patch.getVendor() == null) patch.setVendor(existing.getVendor());
+        if (patch.getResearch() == null) patch.setResearch(existing.getResearch());
+        if (patch.getConnected() == null) patch.setConnected(existing.getConnected());
+    }
 
     private Query buildDeviceSerialNumberQuery(String deviceSerialNumber) {
         return Query.query(Criteria.where("deviceSerialNumber").is(deviceSerialNumber));
