@@ -128,19 +128,19 @@ public class SlideScannerService {
                     log.info("updateByDeviceSerialNumber: patch after merge (this is what gets $set to Mongo) DeviceSerialNumber={} mergedPatch={}", deviceSerialNumber, describe(slideScanner));
 
                     return slideScannerRepository.findAndModify(query, slideScanner, true)
-                        .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
-                        .doOnNext(updated -> log.info("updateByDeviceSerialNumber: Mongo findAndModify result DeviceSerialNumber={} updated={}", deviceSerialNumber, describe(updated)))
-                        .flatMap(updated -> {
-                            Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
-                                    .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
-                                    .then();
-                            Mono<SlideScanner> result = incomingResearch ? getByDeviceSerialNumber(deviceSerialNumber) : Mono.just(updated);
-                            return Mono.whenDelayError(invalidateCache)
-                                    .then(result)
-                                    .doOnNext(finalResult -> log.info("updateByDeviceSerialNumber: finalResult DeviceSerialNumber={} finalResult={}", deviceSerialNumber, describe(finalResult)))
-                                    .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult)
-                                            .thenReturn(finalResult));
-                        });
+                            .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
+                            .doOnNext(updated -> log.info("updateByDeviceSerialNumber: Mongo findAndModify result DeviceSerialNumber={} updated={}", deviceSerialNumber, describe(updated)))
+                            .flatMap(updated -> {
+                                Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
+                                        .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
+                                        .then();
+                                Mono<SlideScanner> result = incomingResearch ? getByDeviceSerialNumber(deviceSerialNumber) : Mono.just(updated);
+                                return Mono.whenDelayError(invalidateCache)
+                                        .then(result)
+                                        .doOnNext(finalResult -> log.info("updateByDeviceSerialNumber: finalResult DeviceSerialNumber={} finalResult={}", deviceSerialNumber, describe(finalResult)))
+                                        .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult)
+                                                .thenReturn(finalResult));
+                            });
                 })
                 .doOnSuccess(updated -> log.info("Slide scanner updated successfully: DeviceSerialNumber={}", updated.getDeviceSerialNumber()))
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));
