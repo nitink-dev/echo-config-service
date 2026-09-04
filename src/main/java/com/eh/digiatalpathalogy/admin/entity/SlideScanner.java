@@ -160,31 +160,15 @@ public class SlideScanner {
         return remoteAeTitle;
     }
 
-    public void setRemoteAeTitle(String remoteAeTitle) {
-        this.remoteAeTitle = remoteAeTitle;
-    }
-
     public String getRemoteHost() {
         return remoteHost;
-    }
-
-    public void setRemoteHost(String remoteHost) {
-        this.remoteHost = remoteHost;
     }
 
     public Integer getRemotePort() {
         return remotePort;
     }
 
-    public void setRemotePort(Integer remotePort) {
-        this.remotePort = remotePort;
-    }
-
     public String getStorageStrategy() {
         return storageStrategy;
-    }
-
-    public void setStorageStrategy(String storageStrategy) {
-        this.storageStrategy = storageStrategy;
     }
 }
