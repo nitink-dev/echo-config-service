@@ -160,6 +160,10 @@ public class SlideScannerService {
         if (patch.getVendor() == null) patch.setVendor(existing.getVendor());
         if (patch.getResearch() == null) patch.setResearch(existing.getResearch());
         if (patch.getConnected() == null) patch.setConnected(existing.getConnected());
+        if (patch.getRemoteAeTitle() == null) patch.setRemoteAeTitle(existing.getRemoteAeTitle());
+        if (patch.getRemoteHost() == null) patch.setRemoteHost(existing.getRemoteHost());
+        if (patch.getRemotePort() == null) patch.setRemotePort(existing.getRemotePort());
+        if (patch.getStorageStrategy() == null) patch.setStorageStrategy(existing.getStorageStrategy());
     }
 
     private String describe(SlideScanner s) {
