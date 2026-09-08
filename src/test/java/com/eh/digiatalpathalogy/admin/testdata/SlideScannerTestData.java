@@ -23,6 +23,10 @@ public class SlideScannerTestData {
         scanner.setVendor("Acme");
         scanner.setResearch(Boolean.FALSE);
         scanner.setConnected(Boolean.TRUE);
+        scanner.setRemoteAeTitle("SRORESCP");
+        scanner.setRemoteHost("171.33.43.10");
+        scanner.setRemotePort(9999);
+        scanner.setStorageStrategy("C-STORE");
         return scanner;
     }
 }

@@ -169,6 +169,10 @@ class SlideScannerServiceTest {
                         && "Acme".equals(payload.getVendor())
                         && Boolean.FALSE.equals(payload.getResearch())
                         && Boolean.TRUE.equals(payload.getConnected())
+                        && "SRORESCP".equals(payload.getRemoteAeTitle())
+                        && "171.33.43.10".equals(payload.getRemoteHost())
+                        && Integer.valueOf(9999).equals(payload.getRemotePort())
+                        && "C-STORE".equals(payload.getStorageStrategy())
         ), eq(true));
     }
 
