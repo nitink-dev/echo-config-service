@@ -20,6 +20,7 @@ import java.util.Map;
 
 import static com.eh.digiatalpathalogy.admin.testdata.SlideScannerTestData.scanner;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -98,7 +99,7 @@ class SlideScannerControllerTest {
         SlideScanner updated = scanner("SS12118");
         updated.setResearch(Boolean.TRUE);
 
-        given(slideScannerService.updateByDeviceSerialNumber(eq("SS12118"), any(SlideScanner.class)))
+        given(slideScannerService.updateByDeviceSerialNumber(eq("SS12118"), any(SlideScanner.class), anySet()))
                 .willReturn(Mono.just(updated));
 
         webTestClient.patch()

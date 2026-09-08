@@ -4,6 +4,7 @@ import com.eh.digiatalpathalogy.admin.entity.SlideAnalysisReport;
 import com.eh.digiatalpathalogy.admin.entity.SlideScanner;
 import com.eh.digiatalpathalogy.admin.services.SlideAnalysisReportService;
 import com.eh.digiatalpathalogy.admin.services.SlideScannerService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -11,6 +12,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping(path = "api/scanners")
@@ -18,10 +20,12 @@ public class SlideScannerController {
 
     private final SlideScannerService slideScannerService;
     private final SlideAnalysisReportService slideAnalysisReportService;
+    private final ObjectMapper objectMapper;
 
-    public SlideScannerController(SlideScannerService slideScannerService, SlideAnalysisReportService slideAnalysisReportService) {
+    public SlideScannerController(SlideScannerService slideScannerService, SlideAnalysisReportService slideAnalysisReportService, ObjectMapper objectMapper) {
         this.slideScannerService = slideScannerService;
         this.slideAnalysisReportService = slideAnalysisReportService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping
@@ -40,8 +44,10 @@ public class SlideScannerController {
     }
 
     @PatchMapping("{deviceSerialNumber}")
-    public Mono<SlideScanner> update(@PathVariable String deviceSerialNumber, @RequestBody SlideScanner slideScanner) {
-        return slideScannerService.updateByDeviceSerialNumber(deviceSerialNumber, slideScanner);
+    public Mono<SlideScanner> update(@PathVariable String deviceSerialNumber, @RequestBody(required = false) Map<String, Object> body) {
+        Set<String> presentFields = body == null ? Set.of() : body.keySet();
+        SlideScanner slideScanner = body == null ? null : objectMapper.convertValue(body, SlideScanner.class);
+        return slideScannerService.updateByDeviceSerialNumber(deviceSerialNumber, slideScanner, presentFields);
     }
 
     @GetMapping("{id}/reports")

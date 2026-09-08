@@ -21,9 +21,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.DEFAULT_APPLICATION;
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.RESEARCH_DICOM_STORE;
@@ -98,7 +100,19 @@ public class SlideScannerService {
                 .doOnError(error -> log.error("Slide scanner creation failed: {}", error.getMessage(), error));
     }
 
+    /**
+     * Best-effort overload for callers that don't have access to the raw request body
+     * (e.g. tests constructing a patch programmatically). Presence of a field is inferred
+     * from it being non-null on the patch, which cannot distinguish "explicitly cleared"
+     * from "omitted" for non-String fields (e.g. remotePort, where an empty string on the
+     * wire also deserializes to null) - callers that need that distinction should use the
+     * overload below with the real set of keys from the request body.
+     */
     public Mono<SlideScanner> updateByDeviceSerialNumber(String deviceSerialNumber, SlideScanner slideScanner) {
+        return updateByDeviceSerialNumber(deviceSerialNumber, slideScanner, inferPresentFields(slideScanner));
+    }
+
+    public Mono<SlideScanner> updateByDeviceSerialNumber(String deviceSerialNumber, SlideScanner slideScanner, Set<String> presentFields) {
 
         if (!StringUtils.hasText(deviceSerialNumber)) {
             return Mono.error(new HttpRequestException(HttpStatus.BAD_REQUEST, "DeviceSerialNumber must not be blank."));
@@ -106,6 +120,7 @@ public class SlideScannerService {
         if (slideScanner == null) {
             return Mono.error(new HttpRequestException(HttpStatus.BAD_REQUEST, "Update payload must not be null."));
         }
+        final Set<String> fields = presentFields == null ? inferPresentFields(slideScanner) : presentFields;
         final boolean incomingResearch = Boolean.TRUE.equals(slideScanner.getResearch());
         final String incomingDicomStore = slideScanner.getDicomStore();
 
@@ -115,7 +130,8 @@ public class SlideScannerService {
         return getByDeviceSerialNumber(deviceSerialNumber)
                 .doOnNext(oldData -> log.info("updateByDeviceSerialNumber: fetched oldData DeviceSerialNumber={} oldData={}", deviceSerialNumber, describe(oldData)))
                 .flatMap(oldData -> {
-                    fillMissingFields(slideScanner, oldData);
+                    fillMissingFields(slideScanner, oldData, fields);
+                    clearExplicitlyBlankFields(slideScanner, fields);
                     slideScanner.setId(null);
                     slideScanner.setDeviceSerialNumber(null);
 
@@ -146,24 +162,67 @@ public class SlideScannerService {
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));
     }
 
-    private void fillMissingFields(SlideScanner patch, SlideScanner existing) {
-        if (patch.getDeviceId() == null) patch.setDeviceId(existing.getDeviceId());
-        if (patch.getName() == null) patch.setName(existing.getName());
-        if (patch.getModel() == null) patch.setModel(existing.getModel());
-        if (patch.getLocation() == null) patch.setLocation(existing.getLocation());
-        if (patch.getDepartment() == null) patch.setDepartment(existing.getDepartment());
-        if (patch.getDicomStore() == null) patch.setDicomStore(existing.getDicomStore());
-        if (patch.getAeTitle() == null) patch.setAeTitle(existing.getAeTitle());
-        if (patch.getPort() == null) patch.setPort(existing.getPort());
-        if (patch.getHospitalName() == null) patch.setHospitalName(existing.getHospitalName());
-        if (patch.getIpAddress() == null) patch.setIpAddress(existing.getIpAddress());
-        if (patch.getVendor() == null) patch.setVendor(existing.getVendor());
-        if (patch.getResearch() == null) patch.setResearch(existing.getResearch());
-        if (patch.getConnected() == null) patch.setConnected(existing.getConnected());
-        if (patch.getRemoteAeTitle() == null) patch.setRemoteAeTitle(existing.getRemoteAeTitle());
-        if (patch.getRemoteHost() == null) patch.setRemoteHost(existing.getRemoteHost());
-        if (patch.getRemotePort() == null) patch.setRemotePort(existing.getRemotePort());
-        if (patch.getStorageStrategy() == null) patch.setStorageStrategy(existing.getStorageStrategy());
+    private static Set<String> inferPresentFields(SlideScanner patch) {
+        Set<String> fields = new HashSet<>();
+        if (patch == null) return fields;
+        if (patch.getDeviceId() != null) fields.add("deviceId");
+        if (patch.getName() != null) fields.add("name");
+        if (patch.getModel() != null) fields.add("model");
+        if (patch.getLocation() != null) fields.add("location");
+        if (patch.getDepartment() != null) fields.add("department");
+        if (patch.getDicomStore() != null) fields.add("dicomStore");
+        if (patch.getAeTitle() != null) fields.add("aeTitle");
+        if (patch.getPort() != null) fields.add("port");
+        if (patch.getHospitalName() != null) fields.add("hospitalName");
+        if (patch.getIpAddress() != null) fields.add("ipAddress");
+        if (patch.getVendor() != null) fields.add("vendor");
+        if (patch.getResearch() != null) fields.add("research");
+        if (patch.getConnected() != null) fields.add("connected");
+        if (patch.getRemoteAeTitle() != null) fields.add("remoteAeTitle");
+        if (patch.getRemoteHost() != null) fields.add("remoteHost");
+        if (patch.getRemotePort() != null) fields.add("remotePort");
+        if (patch.getStorageStrategy() != null) fields.add("storageStrategy");
+        return fields;
+    }
+
+    private void fillMissingFields(SlideScanner patch, SlideScanner existing, Set<String> presentFields) {
+        if (!presentFields.contains("deviceId")) patch.setDeviceId(existing.getDeviceId());
+        if (!presentFields.contains("name")) patch.setName(existing.getName());
+        if (!presentFields.contains("model")) patch.setModel(existing.getModel());
+        if (!presentFields.contains("location")) patch.setLocation(existing.getLocation());
+        if (!presentFields.contains("department")) patch.setDepartment(existing.getDepartment());
+        if (!presentFields.contains("dicomStore")) patch.setDicomStore(existing.getDicomStore());
+        if (!presentFields.contains("aeTitle")) patch.setAeTitle(existing.getAeTitle());
+        if (!presentFields.contains("port")) patch.setPort(existing.getPort());
+        if (!presentFields.contains("hospitalName")) patch.setHospitalName(existing.getHospitalName());
+        if (!presentFields.contains("ipAddress")) patch.setIpAddress(existing.getIpAddress());
+        if (!presentFields.contains("vendor")) patch.setVendor(existing.getVendor());
+        if (!presentFields.contains("research")) patch.setResearch(existing.getResearch());
+        if (!presentFields.contains("connected")) patch.setConnected(existing.getConnected());
+        if (!presentFields.contains("remoteAeTitle")) patch.setRemoteAeTitle(existing.getRemoteAeTitle());
+        if (!presentFields.contains("remoteHost")) patch.setRemoteHost(existing.getRemoteHost());
+        if (!presentFields.contains("remotePort")) patch.setRemotePort(existing.getRemotePort());
+        if (!presentFields.contains("storageStrategy")) patch.setStorageStrategy(existing.getStorageStrategy());
+    }
+
+    /**
+     * A field that's present in the request but blank means the caller explicitly wants to
+     * clear it. fillMissingFields() only backfills fields that are absent, so a leftover
+     * blank here is unambiguous. maybeSet()'s blank-string skip (in the shared Mongo update
+     * builder) would otherwise silently leave the old value in place, so normalize to a real
+     * null here to get it actually cleared via the includeNulls=true $set. Only non-mandatory
+     * fields are handled here; name/location/department/aeTitle/dicomStore are excluded since
+     * a blank value there isn't a legitimate clear.
+     */
+    private void clearExplicitlyBlankFields(SlideScanner patch, Set<String> presentFields) {
+        if (presentFields.contains("model") && !StringUtils.hasText(patch.getModel())) patch.setModel(null);
+        if (presentFields.contains("port") && !StringUtils.hasText(patch.getPort())) patch.setPort(null);
+        if (presentFields.contains("hospitalName") && !StringUtils.hasText(patch.getHospitalName())) patch.setHospitalName(null);
+        if (presentFields.contains("ipAddress") && !StringUtils.hasText(patch.getIpAddress())) patch.setIpAddress(null);
+        if (presentFields.contains("vendor") && !StringUtils.hasText(patch.getVendor())) patch.setVendor(null);
+        if (presentFields.contains("remoteAeTitle") && !StringUtils.hasText(patch.getRemoteAeTitle())) patch.setRemoteAeTitle(null);
+        if (presentFields.contains("remoteHost") && !StringUtils.hasText(patch.getRemoteHost())) patch.setRemoteHost(null);
+        if (presentFields.contains("storageStrategy") && !StringUtils.hasText(patch.getStorageStrategy())) patch.setStorageStrategy(null);
     }
 
     private String describe(SlideScanner s) {

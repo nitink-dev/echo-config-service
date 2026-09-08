@@ -24,6 +24,7 @@ import reactor.test.StepVerifier;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.DEFAULT_APPLICATION;
@@ -173,6 +174,59 @@ class SlideScannerServiceTest {
                         && "171.33.43.10".equals(payload.getRemoteHost())
                         && Integer.valueOf(9999).equals(payload.getRemotePort())
                         && "C-STORE".equals(payload.getStorageStrategy())
+        ), eq(true));
+    }
+
+    @Test
+    @DisplayName("updateByDeviceSerialNumber() → explicit blank on a non-mandatory String field → clears it instead of keeping the old value")
+    void update_explicitBlankStringField_clearsField() {
+        SlideScanner existing = scanner("SS12118");
+
+        SlideScanner patch = new SlideScanner();
+        patch.setRemoteAeTitle("");
+
+        SlideScanner updatedInDb = scanner("SS12118");
+        updatedInDb.setRemoteAeTitle(null);
+
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class))).thenReturn(Mono.just(existing));
+        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class), eq(true))).thenReturn(Mono.just(updatedInDb));
+        when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
+
+        StepVerifier.create(service.updateByDeviceSerialNumber("SS12118", patch, Set.of("remoteAeTitle")))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
+                payload.getRemoteAeTitle() == null
+                        && "171.33.43.10".equals(payload.getRemoteHost()) // untouched fields still preserved
+        ), eq(true));
+    }
+
+    @Test
+    @DisplayName("updateByDeviceSerialNumber() → explicit blank on remotePort (present in request, coerced to null) → clears it instead of keeping the old value")
+    void update_explicitBlankRemotePort_clearsField() {
+        SlideScanner existing = scanner("SS12118");
+
+        SlideScanner patch = new SlideScanner(); // remotePort left null, as Jackson would coerce "" -> null
+        patch.setModel("Updated-Model");
+
+        SlideScanner updatedInDb = scanner("SS12118");
+        updatedInDb.setRemotePort(null);
+
+        when(redisStore.findByKeyWithFallback(anyString(), any(), eq(SlideScanner.class))).thenReturn(Mono.just(existing));
+        when(slideScannerRepository.findAndModify(any(Query.class), any(SlideScanner.class), eq(true))).thenReturn(Mono.just(updatedInDb));
+        when(redisStore.deleteKeysByPattern(anyString())).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(eq("scanner"), any(SlideScanner.class), any(SlideScanner.class))).thenReturn(Mono.empty());
+
+        StepVerifier.create(service.updateByDeviceSerialNumber("SS12118", patch, Set.of("model", "remotePort")))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
+                payload.getRemotePort() == null
+                        && "Updated-Model".equals(payload.getModel())
+                        && "SRORESCP".equals(payload.getRemoteAeTitle()) // untouched fields still preserved
         ), eq(true));
     }
 
