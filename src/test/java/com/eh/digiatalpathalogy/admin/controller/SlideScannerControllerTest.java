@@ -8,6 +8,7 @@ import com.eh.digiatalpathalogy.admin.services.SlideScannerService;
 import com.eh.digiatalpathalogy.admin.support.WebFluxControllerTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -15,14 +16,17 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.eh.digiatalpathalogy.admin.testdata.SlideScannerTestData.scanner;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 @WebFluxControllerTest(controllers = SlideScannerController.class)
@@ -112,6 +116,42 @@ class SlideScannerControllerTest {
                 .expectBody()
                 .jsonPath("$.deviceSerialNumber").isEqualTo("SS12118")
                 .jsonPath("$.research").isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName("PATCH /api/scanners/{deviceSerialNumber} → raw JSON with explicit null (as the real UI sends after sanitizeFormData) → captured correctly")
+    void patch_scanner_explicitJsonNull_capturedCorrectly() {
+        SlideScanner updated = scanner("SS12118");
+
+        given(slideScannerService.updateByDeviceSerialNumber(eq("SS12118"), any(SlideScanner.class), anySet()))
+                .willReturn(Mono.just(updated));
+
+        Map<String, Object> rawBody = new LinkedHashMap<>();
+        rawBody.put("model", null);
+        rawBody.put("ipAddress", "10.0.0.99");
+        rawBody.put("deviceSerialNumber", "SS12118");
+
+        webTestClient.patch()
+                .uri("/api/scanners/SS12118")
+                .contentType(APPLICATION_JSON)
+                .accept(APPLICATION_JSON)
+                .bodyValue(rawBody)
+                .exchange()
+                .expectStatus().isOk();
+
+        ArgumentCaptor<SlideScanner> patchCaptor = ArgumentCaptor.forClass(SlideScanner.class);
+        ArgumentCaptor<Set<String>> fieldsCaptor = ArgumentCaptor.forClass(Set.class);
+        verify(slideScannerService).updateByDeviceSerialNumber(eq("SS12118"), patchCaptor.capture(), fieldsCaptor.capture());
+
+        SlideScanner captured = patchCaptor.getValue();
+        Set<String> presentFields = fieldsCaptor.getValue();
+
+        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains("model"),
+                "presentFields should contain 'model' even though its value is JSON null: " + presentFields);
+        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains("ipAddress"),
+                "presentFields should contain 'ipAddress': " + presentFields);
+        org.junit.jupiter.api.Assertions.assertNull(captured.getModel(), "model should deserialize to null");
+        org.junit.jupiter.api.Assertions.assertEquals("10.0.0.99", captured.getIpAddress());
     }
 
     @Test
