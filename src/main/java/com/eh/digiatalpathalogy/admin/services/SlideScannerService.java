@@ -85,7 +85,6 @@ public class SlideScannerService {
         }
 
         slideScanner.setId(null);
-        slideScanner.setDeviceId(slideScanner.getDeviceSerialNumber());
 
         return slideScannerRepository.save(slideScanner)
                 .flatMap(saved -> redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
@@ -165,7 +164,6 @@ public class SlideScannerService {
     private static Set<String> inferPresentFields(SlideScanner patch) {
         Set<String> fields = new HashSet<>();
         if (patch == null) return fields;
-        if (patch.getDeviceId() != null) fields.add("deviceId");
         if (patch.getName() != null) fields.add("name");
         if (patch.getModel() != null) fields.add("model");
         if (patch.getLocation() != null) fields.add("location");
@@ -186,7 +184,6 @@ public class SlideScannerService {
     }
 
     private void fillMissingFields(SlideScanner patch, SlideScanner existing, Set<String> presentFields) {
-        if (!presentFields.contains("deviceId")) patch.setDeviceId(existing.getDeviceId());
         if (!presentFields.contains("name")) patch.setName(existing.getName());
         if (!presentFields.contains("model")) patch.setModel(existing.getModel());
         if (!presentFields.contains("location")) patch.setLocation(existing.getLocation());
@@ -228,7 +225,6 @@ public class SlideScannerService {
     private String describe(SlideScanner s) {
         if (s == null) return "null";
         return "{id=" + s.getId()
-                + ", deviceId=" + s.getDeviceId()
                 + ", deviceSerialNumber=" + s.getDeviceSerialNumber()
                 + ", name=" + s.getName()
                 + ", model=" + s.getModel()

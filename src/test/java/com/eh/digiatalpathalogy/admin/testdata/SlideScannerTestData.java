@@ -9,7 +9,6 @@ public class SlideScannerTestData {
     public static SlideScanner scanner(String deviceSerialNumber) {
         SlideScanner scanner = new SlideScanner();
         scanner.setId(UUID.randomUUID().toString());
-        scanner.setDeviceId(deviceSerialNumber);
         scanner.setDeviceSerialNumber(deviceSerialNumber);
         scanner.setName("SS12118");
         scanner.setModel("GT450DX");

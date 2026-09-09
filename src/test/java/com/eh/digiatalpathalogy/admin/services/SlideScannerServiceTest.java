@@ -431,8 +431,8 @@ class SlideScannerServiceTest {
     }
 
     @Test
-    @DisplayName("create() → keeps provided research/connected, sets id=null and deviceId=deviceSerialNumber")
-    void create_keepsProvidedFlags_and_setsDeviceId() {
+    @DisplayName("create() → keeps provided research/connected, sets id=null")
+    void create_keepsProvidedFlags_and_clearsId() {
         SlideScanner input = new SlideScanner();
         input.setDeviceSerialNumber("new-device-serial-number");
         input.setResearch(Boolean.TRUE);
@@ -451,7 +451,7 @@ class SlideScannerServiceTest {
                 .verifyComplete();
 
         verify(slideScannerRepository).save(argThat(arg ->
-                arg.getId() == null && "new-device-serial-number".equals(arg.getDeviceId()) && Boolean.TRUE.equals(arg.getResearch()) && Boolean.FALSE.equals(arg.getConnected())
+                arg.getId() == null && "new-device-serial-number".equals(arg.getDeviceSerialNumber()) && Boolean.TRUE.equals(arg.getResearch()) && Boolean.FALSE.equals(arg.getConnected())
         ));
         verify(notificationService).notifyEntityChange(eq("scanner"), isNull(), any(SlideScanner.class));
     }

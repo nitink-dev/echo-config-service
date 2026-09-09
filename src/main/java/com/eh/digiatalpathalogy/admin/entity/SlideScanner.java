@@ -13,7 +13,6 @@ public class SlideScanner {
 
     @Id
     private String id;
-    private String deviceId;
     private String deviceSerialNumber;
     @NotBlank
     private String name;
@@ -42,14 +41,6 @@ public class SlideScanner {
 
     public void setId(String id) {
         this.id = id;
-    }
-
-    public String getDeviceId() {
-        return deviceId;
-    }
-
-    public void setDeviceId(String deviceId) {
-        this.deviceId = deviceId;
     }
 
     public String getDeviceSerialNumber() {
