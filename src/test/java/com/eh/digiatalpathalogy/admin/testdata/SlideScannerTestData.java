@@ -12,6 +12,7 @@ public class SlideScannerTestData {
         scanner.setDeviceSerialNumber(deviceSerialNumber);
         scanner.setName("SS12118");
         scanner.setModel("GT450DX");
+        scanner.setScannerType("Pathology");
         scanner.setLocation("Evanston");
         scanner.setDepartment("digital-pathology-dataset");
         scanner.setDicomStore("projects/p1/locations/l1/datasets/d1/dicomStores/store1");

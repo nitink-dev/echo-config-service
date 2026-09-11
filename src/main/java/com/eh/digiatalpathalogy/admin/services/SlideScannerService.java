@@ -166,6 +166,7 @@ public class SlideScannerService {
         if (patch == null) return fields;
         if (patch.getName() != null) fields.add("name");
         if (patch.getModel() != null) fields.add("model");
+        if (patch.getScannerType() != null) fields.add("scannerType");
         if (patch.getLocation() != null) fields.add("location");
         if (patch.getDepartment() != null) fields.add("department");
         if (patch.getDicomStore() != null) fields.add("dicomStore");
@@ -186,6 +187,7 @@ public class SlideScannerService {
     private void fillMissingFields(SlideScanner patch, SlideScanner existing, Set<String> presentFields) {
         if (!presentFields.contains("name")) patch.setName(existing.getName());
         if (!presentFields.contains("model")) patch.setModel(existing.getModel());
+        if (!presentFields.contains("scannerType")) patch.setScannerType(existing.getScannerType());
         if (!presentFields.contains("location")) patch.setLocation(existing.getLocation());
         if (!presentFields.contains("department")) patch.setDepartment(existing.getDepartment());
         if (!presentFields.contains("dicomStore")) patch.setDicomStore(existing.getDicomStore());
@@ -228,6 +230,7 @@ public class SlideScannerService {
                 + ", deviceSerialNumber=" + s.getDeviceSerialNumber()
                 + ", name=" + s.getName()
                 + ", model=" + s.getModel()
+                + ", scannerType=" + s.getScannerType()
                 + ", location=" + s.getLocation()
                 + ", department=" + s.getDepartment()
                 + ", dicomStore=" + s.getDicomStore()

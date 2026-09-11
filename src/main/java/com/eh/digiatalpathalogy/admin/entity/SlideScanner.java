@@ -18,6 +18,8 @@ public class SlideScanner {
     private String name;
     private String model;
     @NotBlank
+    private String scannerType;
+    @NotBlank
     private String location;
     @NotBlank
     private String department;
@@ -65,6 +67,14 @@ public class SlideScanner {
 
     public void setModel(@NotBlank String model) {
         this.model = model;
+    }
+
+    public @NotBlank String getScannerType() {
+        return scannerType;
+    }
+
+    public void setScannerType(@NotBlank String scannerType) {
+        this.scannerType = scannerType;
     }
 
     public @NotBlank String getLocation() {

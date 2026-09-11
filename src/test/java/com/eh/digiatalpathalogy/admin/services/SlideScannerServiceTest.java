@@ -160,6 +160,7 @@ class SlideScannerServiceTest {
         verify(slideScannerRepository).findAndModify(any(Query.class), argThat(payload ->
                 "Updated-Name-Only".equals(payload.getName())
                         && "GT450DX".equals(payload.getModel())
+                        && "Pathology".equals(payload.getScannerType())
                         && "Evanston".equals(payload.getLocation())
                         && "digital-pathology-dataset".equals(payload.getDepartment())
                         && "projects/p1/locations/l1/datasets/d1/dicomStores/store1".equals(payload.getDicomStore())
