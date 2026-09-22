@@ -1,0 +1,21 @@
+form-labels:
+  forms:
+    scanner:
+      deviceSerialNumber: Serial Number
+      name: Name of Scanner
+      model: Model
+      scannerType: Scanner Type
+      aeTitle: AE Title
+      location: Location
+      department: Department Name
+      dicomStore: Dicom Store
+      port: Port
+      hospitalName: Hospital Name
+      ipAddress: IP Address
+      vendor: Vendor
+      research: Research Mode
+      connected: Connection Status
+      remoteAeTitle: Remote AE Title
+      remoteHost: Remote Host
+      remotePort: Remote Port
+      storageStrategy: Storage Strategy
