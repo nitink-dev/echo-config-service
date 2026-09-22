@@ -19,3 +19,52 @@ form-labels:
       remoteHost: Remote Host
       remotePort: Remote Port
       storageStrategy: Storage Strategy
+    lis:
+      applicationName: Application Name
+      ipAddress: IP Address
+      receivingFacility: Application Facility
+      port: Port
+      name: LIS Name
+    dicomStore:
+      dicomStore: DICOM Store Address
+    qaSlide:
+      barcode: QA Slide Barcode
+      activationCode: Activation Code
+    eh-dicom-receiver:
+      aet: AET
+      samIpAddress: SAM Server Address
+      port: Port
+      networkDrive: Network Drive
+      serviceIpAddress: IP Address
+      watcherActive: Enable directory watcher
+    eh-lis-connector:
+      applicationName: Application Name
+      receivingPort: Port
+      sendingFacility: Application Facility
+      serviceIpAddress: IP Address
+    eh-dicom-enricher:
+      messageType: Message Type
+      serviceIpAddress: IP Address
+    eh-export-service:
+      synapseEnabled: Synapse Enabled
+      visioPharmEnabled: VisioPharm Enabled
+      ibexEnabled: IBEX Enabled
+      serviceIpAddress: IP Address
+    eh-hl7-connector:
+      applicationName: Application Name
+      receivingPort: Port
+      sendingFacility: Application Facility
+      serviceIpAddress: IP Address
+    eh-email-service:
+      emailFrom: Email From
+      serviceIpAddress: IP Address
+      emailTo: Registered Email Ids for Enrichment Service Notifications
+      emailIbexTo: Email for IBEX Slide Analysis Event
+    synapse:
+      imsName: Name
+      ipAddress: IP Address
+      receivingPort: Port
+      networkFolder: Network Folder Location 1
+      networkFolder2: Network Folder Location 2
+      applicationName: Application Name
+      receivingFacility: Application Facility
