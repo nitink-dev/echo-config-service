@@ -98,15 +98,6 @@ public class SlideScannerService {
                 })
                 .doOnError(error -> log.error("Slide scanner creation failed: {}", error.getMessage(), error));
     }
-
-    /**
-     * Best-effort overload for callers that don't have access to the raw request body
-     * (e.g. tests constructing a patch programmatically). Presence of a field is inferred
-     * from it being non-null on the patch, which cannot distinguish "explicitly cleared"
-     * from "omitted" for non-String fields (e.g. remotePort, where an empty string on the
-     * wire also deserializes to null) - callers that need that distinction should use the
-     * overload below with the real set of keys from the request body.
-     */
     public Mono<SlideScanner> updateByDeviceSerialNumber(String deviceSerialNumber, SlideScanner slideScanner) {
         return updateByDeviceSerialNumber(deviceSerialNumber, slideScanner, inferPresentFields(slideScanner));
     }
@@ -204,15 +195,6 @@ public class SlideScannerService {
         if (!presentFields.contains("storageStrategy")) patch.setStorageStrategy(existing.getStorageStrategy());
     }
 
-    /**
-     * A field that's present in the request but blank means the caller explicitly wants to
-     * clear it. fillMissingFields() only backfills fields that are absent, so a leftover
-     * blank here is unambiguous. maybeSet()'s blank-string skip (in the shared Mongo update
-     * builder) would otherwise silently leave the old value in place, so normalize to a real
-     * null here to get it actually cleared via the includeNulls=true $set. Only non-mandatory
-     * fields are handled here; name/location/department/aeTitle/dicomStore are excluded since
-     * a blank value there isn't a legitimate clear.
-     */
     private void clearExplicitlyBlankFields(SlideScanner patch, Set<String> presentFields) {
         if (presentFields.contains("model") && !StringUtils.hasText(patch.getModel())) patch.setModel(null);
         if (presentFields.contains("port") && !StringUtils.hasText(patch.getPort())) patch.setPort(null);
