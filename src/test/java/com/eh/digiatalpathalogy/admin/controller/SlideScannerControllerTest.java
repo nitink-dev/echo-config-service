@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.eh.digiatalpathalogy.admin.constant.SlideScannerFields.IP_ADDRESS;
+import static com.eh.digiatalpathalogy.admin.constant.SlideScannerFields.MODEL;
 import static com.eh.digiatalpathalogy.admin.testdata.SlideScannerTestData.scanner;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
@@ -127,8 +129,8 @@ class SlideScannerControllerTest {
                 .willReturn(Mono.just(updated));
 
         Map<String, Object> rawBody = new LinkedHashMap<>();
-        rawBody.put("model", null);
-        rawBody.put("ipAddress", "10.0.0.99");
+        rawBody.put(MODEL, null);
+        rawBody.put(IP_ADDRESS, "10.0.0.99");
         rawBody.put("deviceSerialNumber", "SS12118");
 
         webTestClient.patch()
@@ -146,9 +148,9 @@ class SlideScannerControllerTest {
         SlideScanner captured = patchCaptor.getValue();
         Set<String> presentFields = fieldsCaptor.getValue();
 
-        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains("model"),
+        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains(MODEL),
                 "presentFields should contain 'model' even though its value is JSON null: " + presentFields);
-        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains("ipAddress"),
+        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains(IP_ADDRESS),
                 "presentFields should contain 'ipAddress': " + presentFields);
         org.junit.jupiter.api.Assertions.assertNull(captured.getModel(), "model should deserialize to null");
         org.junit.jupiter.api.Assertions.assertEquals("10.0.0.99", captured.getIpAddress());

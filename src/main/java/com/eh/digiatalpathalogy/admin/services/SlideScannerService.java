@@ -31,6 +31,7 @@ import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.DEFAULT_APPLICA
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.RESEARCH_DICOM_STORE;
 import static com.eh.digiatalpathalogy.admin.constant.RedisCacheKey.DICOM_RECEIVER_SCANNER_DEVICE_PREFIX;
 import static com.eh.digiatalpathalogy.admin.constant.RedisCacheKey.SCANNER_DEVICE_PREFIX;
+import static com.eh.digiatalpathalogy.admin.constant.SlideScannerFields.*;
 
 @Service
 public class SlideScannerService {
@@ -176,34 +177,34 @@ public class SlideScannerService {
     }
 
     private void fillMissingFields(SlideScanner patch, SlideScanner existing, Set<String> presentFields) {
-        if (!presentFields.contains("name")) patch.setName(existing.getName());
-        if (!presentFields.contains("model")) patch.setModel(existing.getModel());
-        if (!presentFields.contains("scannerType")) patch.setScannerType(existing.getScannerType());
-        if (!presentFields.contains("location")) patch.setLocation(existing.getLocation());
-        if (!presentFields.contains("department")) patch.setDepartment(existing.getDepartment());
-        if (!presentFields.contains("dicomStore")) patch.setDicomStore(existing.getDicomStore());
-        if (!presentFields.contains("aeTitle")) patch.setAeTitle(existing.getAeTitle());
-        if (!presentFields.contains("port")) patch.setPort(existing.getPort());
-        if (!presentFields.contains("hospitalName")) patch.setHospitalName(existing.getHospitalName());
-        if (!presentFields.contains("ipAddress")) patch.setIpAddress(existing.getIpAddress());
-        if (!presentFields.contains("vendor")) patch.setVendor(existing.getVendor());
-        if (!presentFields.contains("research")) patch.setResearch(existing.getResearch());
-        if (!presentFields.contains("connected")) patch.setConnected(existing.getConnected());
-        if (!presentFields.contains("remoteAeTitle")) patch.setRemoteAeTitle(existing.getRemoteAeTitle());
-        if (!presentFields.contains("remoteHost")) patch.setRemoteHost(existing.getRemoteHost());
-        if (!presentFields.contains("remotePort")) patch.setRemotePort(existing.getRemotePort());
-        if (!presentFields.contains("storageStrategy")) patch.setStorageStrategy(existing.getStorageStrategy());
+        if (!presentFields.contains(NAME)) patch.setName(existing.getName());
+        if (!presentFields.contains(MODEL)) patch.setModel(existing.getModel());
+        if (!presentFields.contains(SCANNER_TYPE)) patch.setScannerType(existing.getScannerType());
+        if (!presentFields.contains(LOCATION)) patch.setLocation(existing.getLocation());
+        if (!presentFields.contains(DEPARTMENT)) patch.setDepartment(existing.getDepartment());
+        if (!presentFields.contains(DICOM_STORE)) patch.setDicomStore(existing.getDicomStore());
+        if (!presentFields.contains(AE_TITLE)) patch.setAeTitle(existing.getAeTitle());
+        if (!presentFields.contains(PORT)) patch.setPort(existing.getPort());
+        if (!presentFields.contains(HOSPITAL_NAME)) patch.setHospitalName(existing.getHospitalName());
+        if (!presentFields.contains(IP_ADDRESS)) patch.setIpAddress(existing.getIpAddress());
+        if (!presentFields.contains(VENDOR)) patch.setVendor(existing.getVendor());
+        if (!presentFields.contains(RESEARCH)) patch.setResearch(existing.getResearch());
+        if (!presentFields.contains(CONNECTED)) patch.setConnected(existing.getConnected());
+        if (!presentFields.contains(REMOTE_AE_TITLE)) patch.setRemoteAeTitle(existing.getRemoteAeTitle());
+        if (!presentFields.contains(REMOTE_HOST)) patch.setRemoteHost(existing.getRemoteHost());
+        if (!presentFields.contains(REMOTE_PORT)) patch.setRemotePort(existing.getRemotePort());
+        if (!presentFields.contains(STORAGE_STRATEGY)) patch.setStorageStrategy(existing.getStorageStrategy());
     }
 
     private void clearExplicitlyBlankFields(SlideScanner patch, Set<String> presentFields) {
-        if (presentFields.contains("model") && !StringUtils.hasText(patch.getModel())) patch.setModel(null);
-        if (presentFields.contains("port") && !StringUtils.hasText(patch.getPort())) patch.setPort(null);
-        if (presentFields.contains("hospitalName") && !StringUtils.hasText(patch.getHospitalName())) patch.setHospitalName(null);
-        if (presentFields.contains("ipAddress") && !StringUtils.hasText(patch.getIpAddress())) patch.setIpAddress(null);
-        if (presentFields.contains("vendor") && !StringUtils.hasText(patch.getVendor())) patch.setVendor(null);
-        if (presentFields.contains("remoteAeTitle") && !StringUtils.hasText(patch.getRemoteAeTitle())) patch.setRemoteAeTitle(null);
-        if (presentFields.contains("remoteHost") && !StringUtils.hasText(patch.getRemoteHost())) patch.setRemoteHost(null);
-        if (presentFields.contains("storageStrategy") && !StringUtils.hasText(patch.getStorageStrategy())) patch.setStorageStrategy(null);
+        if (presentFields.contains(MODEL) && !StringUtils.hasText(patch.getModel())) patch.setModel(null);
+        if (presentFields.contains(PORT) && !StringUtils.hasText(patch.getPort())) patch.setPort(null);
+        if (presentFields.contains(HOSPITAL_NAME) && !StringUtils.hasText(patch.getHospitalName())) patch.setHospitalName(null);
+        if (presentFields.contains(IP_ADDRESS) && !StringUtils.hasText(patch.getIpAddress())) patch.setIpAddress(null);
+        if (presentFields.contains(VENDOR) && !StringUtils.hasText(patch.getVendor())) patch.setVendor(null);
+        if (presentFields.contains(REMOTE_AE_TITLE) && !StringUtils.hasText(patch.getRemoteAeTitle())) patch.setRemoteAeTitle(null);
+        if (presentFields.contains(REMOTE_HOST) && !StringUtils.hasText(patch.getRemoteHost())) patch.setRemoteHost(null);
+        if (presentFields.contains(STORAGE_STRATEGY) && !StringUtils.hasText(patch.getStorageStrategy())) patch.setStorageStrategy(null);
     }
 
     private String describe(SlideScanner s) {
