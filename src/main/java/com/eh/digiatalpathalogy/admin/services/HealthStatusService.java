@@ -36,6 +36,9 @@ import static com.eh.digiatalpathalogy.admin.constant.RedisCacheKey.SERVICE_HOST
 public class HealthStatusService {
 
     private static final Logger log = LoggerFactory.getLogger(HealthStatusService.class);
+    private static final String STATUS_UP = "UP";
+    private static final String STATUS_DOWN = "DOWN";
+    private static final String STATUS_UNKNOWN = "UNKNOWN";
 
     private final WebClient webClient;
     private final HealthTargetsProperties properties;
@@ -90,7 +93,7 @@ public class HealthStatusService {
                     long latency = Duration.between(start, Instant.now()).toMillis();
                     boolean up = resp.statusCode().is2xxSuccessful();
                     log.debug("HTTP check result: name={}, status={}, latency={}ms", applicationName, resp.statusCode().value(), latency);
-                    return Mono.just(new HealthStatusResult(up ? "UP" : "DOWN", healthUrl, applicationName, resp.statusCode().value(), latency, null));
+                    return Mono.just(new HealthStatusResult(up ? STATUS_UP : STATUS_DOWN, healthUrl, applicationName, resp.statusCode().value(), latency, null));
                 })
                 .timeout(properties.getReadTimeout())
                 .onErrorResume(ex -> {
@@ -135,7 +138,7 @@ public class HealthStatusService {
             }
             if (process.exitValue() == 0) {
                 log.debug("ICMP UP: name={}, host={}, latency={}ms", target.getName(), host, latency);
-                return new HealthStatusResult("UP", target.getUrl(), target.getName(), 0, latency, null);
+                return new HealthStatusResult(STATUS_UP, target.getUrl(), target.getName(), 0, latency, null);
             }
             String error = readProcessOutput(process);
             log.warn("ICMP failed: name={}, host={}, reason={}", target.getName(), host, error);
@@ -200,7 +203,7 @@ public class HealthStatusService {
                     if (contributor instanceof ReactiveHealthIndicator rhi) {
                         return rhi.health()
                                 .map(h -> Map.entry(name, h.getStatus().getCode()))
-                                .onErrorReturn(Map.entry(name, "UNKNOWN"));
+                                .onErrorReturn(Map.entry(name, STATUS_UNKNOWN));
                     }
                     return Mono.empty();
                 })

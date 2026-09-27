@@ -4,6 +4,7 @@ import com.eh.digiatalpathalogy.admin.config.ConfigStore;
 import com.eh.digiatalpathalogy.admin.entity.QaSlide;
 import com.eh.digiatalpathalogy.admin.exception.HttpRequestException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
+import com.eh.digiatalpathalogy.admin.model.NotificationEntityType;
 import com.eh.digiatalpathalogy.admin.model.QaSlideDetails;
 import com.eh.digiatalpathalogy.admin.repository.QaSlideRepository;
 import com.eh.digiatalpathalogy.admin.util.EncryptionUtils;
@@ -56,7 +57,7 @@ public class QaSlideService {
         return qaSlideRepository.save(qaSlide)
                 .flatMap(saved -> redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
                         .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
-                        .then(notificationService.notifyEntityChange("qaSlide", null,
+                        .then(notificationService.notifyEntityChange(NotificationEntityType.QA_SLIDE.getKey(), null,
                                 new QaSlide(null, saved.barcode(), EncryptionUtils.decrypt(saved.activationCode()))))
                         .thenReturn(saved))
                 .doOnSuccess(saved -> log.info("Slide created successfully with barcode: {}", saved.barcode()))
@@ -84,7 +85,7 @@ public class QaSlideService {
                         .flatMap(updated -> redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
                                 .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX + "*"))
                                 .then(Mono.just(new QaSlide(null, updated.barcode(), EncryptionUtils.decrypt(updated.activationCode()))))
-                                .flatMap(finalResult -> notificationService.notifyEntityChange("qaSlide",
+                                .flatMap(finalResult -> notificationService.notifyEntityChange(NotificationEntityType.QA_SLIDE.getKey(),
                                         new QaSlide(oldData.id(), oldData.barcode(), EncryptionUtils.decrypt(oldData.activationCode())),
                                         finalResult).thenReturn(finalResult))))
                 .doOnSuccess(updated -> log.info("Slide updated successfully for barcode: {}", updated.barcode()))
@@ -101,7 +102,7 @@ public class QaSlideService {
                             }
                             return redisStore.deleteKeysByPattern(SLIDE_BARCODE_PREFIX + "*")
                                     .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_PATH_QA_SLIDE_BARCODE_PREFIX+"*"))
-                                    .then(notificationService.notifyEntityChange("qaSlide",
+                                    .then(notificationService.notifyEntityChange(NotificationEntityType.QA_SLIDE.getKey(),
                                             new QaSlide(oldData.id(), oldData.barcode(), EncryptionUtils.decrypt(oldData.activationCode())),
                                             null))
                                     .thenReturn(true);

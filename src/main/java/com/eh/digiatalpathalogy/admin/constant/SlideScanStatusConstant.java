@@ -35,6 +35,17 @@ public final class SlideScanStatusConstant {
     public static final String HEARTBEAT = "heartbeat";
     public static final String ACTIVE_SCAN_KEY = "slide:status:active";
     public static final String LOCK_KEY = "lock:slide:timeout";
+    public static final String SYNAPSE_STARTED = "synapse-started";
+    public static final String SYNAPSE_COMPLETED = "synapse-completed";
+    public static final String SYNAPSE_FAILED = "synapse-failed";
+    public static final String ENRICHMENT_COMPLETED = "enrichment-completed";
+    public static final String IBEX_CLASSIFICATION_FINISHED = "ibex-classification-finished";
+    public static final String SCAN_STATUS = "scanStatus";
+    public static final String PROGRESS_PERCENT = "progressPercent";
+    public static final String CREATED_AT = "createdAt";
+    public static final String DEVICE_SERIAL_NUMBER = "deviceSerialNumber";
+    public static final String ACCESSION_NUMBER = "accessionNumber";
+    public static final String SCAN_HISTORY = "scanHistory";
 
 }
 

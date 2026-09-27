@@ -170,10 +170,10 @@ public class SlideScanTimeoutMonitorService {
                 .map(String::toLowerCase)
                 .collect(Collectors.toSet());
 
-        if (!statuses.contains("enrichment-completed")) {
+        if (!statuses.contains(ENRICHMENT_COMPLETED)) {
             return new TimeoutDecision(SCAN_FAILED, "System-timeout : Stuck before enrichment");
         }
-        boolean synapseMissing = configStore.getSynapseEnabled() && !statuses.contains("synapse-started") && !statuses.contains("synapse-completed");
+        boolean synapseMissing = configStore.getSynapseEnabled() && !statuses.contains(SYNAPSE_STARTED) && !statuses.contains(SYNAPSE_COMPLETED);
         if (synapseMissing) {
             return new TimeoutDecision(TIMEOUT_WARNING_COMPLETED, "Synapse workflow not executed");
         }

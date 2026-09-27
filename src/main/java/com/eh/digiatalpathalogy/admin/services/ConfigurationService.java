@@ -3,6 +3,7 @@ package com.eh.digiatalpathalogy.admin.services;
 import com.eh.digiatalpathalogy.admin.client.ConfigurationClient;
 import com.eh.digiatalpathalogy.admin.config.ConfigStore;
 import com.eh.digiatalpathalogy.admin.model.ConfigPayload;
+import com.eh.digiatalpathalogy.admin.model.NotificationEntityType;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +55,7 @@ public class ConfigurationService {
                 .onErrorReturn(Optional.empty())
                 .flatMap(oldValue -> updateConfiguration(null, queryParams, configPayload)
                         .then(redisStore.deleteByKey(PATH_QA_DICOM_STORE))
-                        .then(notificationService.notifyEntityChange("dicomStore",
+                        .then(notificationService.notifyEntityChange(NotificationEntityType.DICOM_STORE.getKey(),
                                 oldValue.map(v -> (Object) Map.of(config.keySet().iterator().next(), v)).orElse(null),
                                 config))
                         .thenReturn(config));

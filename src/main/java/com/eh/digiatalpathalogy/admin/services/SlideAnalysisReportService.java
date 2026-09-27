@@ -33,6 +33,7 @@ public class SlideAnalysisReportService {
 
     private static final Logger log = LoggerFactory.getLogger(SlideAnalysisReportService.class);
     private static final String ANALYSIS_COMPLETE = "Completed";
+    private static final String NOT_AVAILABLE = "N/A";
 
     @Value("${path.qa-baseurl}")
     private String pathQABaseUrl;
@@ -184,9 +185,9 @@ public class SlideAnalysisReportService {
 
         log.info("Analysis failed for ID: {}. Error Code: {}, Message: {}, Details: {}",
                 analysisId,
-                error != null ? error.getCode() : "N/A",
-                error != null ? error.getMessage() : "N/A",
-                error != null ? error.getDetails() : "N/A"
+                error != null ? error.getCode() : NOT_AVAILABLE,
+                error != null ? error.getMessage() : NOT_AVAILABLE,
+                error != null ? error.getDetails() : NOT_AVAILABLE
         );
 
         return Mono.error(new IllegalStateException("Analysis failed for analysisId=" + analysisId));

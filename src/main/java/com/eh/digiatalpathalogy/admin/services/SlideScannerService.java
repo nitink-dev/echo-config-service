@@ -5,6 +5,7 @@ import com.eh.digiatalpathalogy.admin.entity.SlideScanner;
 import com.eh.digiatalpathalogy.admin.exception.HttpRequestException;
 import com.eh.digiatalpathalogy.admin.exception.InternalServerException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
+import com.eh.digiatalpathalogy.admin.model.NotificationEntityType;
 import com.eh.digiatalpathalogy.admin.repository.SlideScannerRepository;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
 import jakarta.annotation.Nullable;
@@ -90,7 +91,7 @@ public class SlideScannerService {
         return slideScannerRepository.save(slideScanner)
                 .flatMap(saved -> redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
                         .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
-                        .then(notificationService.notifyEntityChange("scanner", null, saved))
+                        .then(notificationService.notifyEntityChange(NotificationEntityType.SCANNER.getKey(), null, saved))
                         .thenReturn(saved))
                 .doOnSuccess(saved -> log.info("Slide scanner created: DeviceSerialNumber={}", saved.getDeviceSerialNumber()))
                 .onErrorMap(DuplicateKeyException.class, ex -> {
@@ -145,7 +146,7 @@ public class SlideScannerService {
                                 return Mono.whenDelayError(invalidateCache)
                                         .then(result)
                                         .doOnNext(finalResult -> log.info("updateByDeviceSerialNumber: finalResult DeviceSerialNumber={} finalResult={}", deviceSerialNumber, describe(finalResult)))
-                                        .flatMap(finalResult -> notificationService.notifyEntityChange("scanner", oldData, finalResult)
+                                        .flatMap(finalResult -> notificationService.notifyEntityChange(NotificationEntityType.SCANNER.getKey(), oldData, finalResult)
                                                 .thenReturn(finalResult));
                             });
                 })
@@ -280,7 +281,7 @@ public class SlideScannerService {
                             }
                             return redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
                                     .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
-                                    .then(notificationService.notifyEntityChange("scanner", oldData, null))
+                                    .then(notificationService.notifyEntityChange(NotificationEntityType.SCANNER.getKey(), oldData, null))
                                     .thenReturn(true);
                         }))
                 .doOnSuccess(v -> log.info("Slide Scanner deleted successfully with deviceSerialNumber: {}", deviceSerialNumber))

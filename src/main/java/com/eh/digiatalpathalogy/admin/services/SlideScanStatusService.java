@@ -170,7 +170,7 @@ public class SlideScanStatusService {
     private Mono<Void> processEvent(Signal<SlideScanProgressEvent> signal, SlideScanProgressEvent newValidEvent) {
 
         if (!signal.hasValue()) {
-            final boolean isSynapseQuery = newValidEvent.scanStatus().equalsIgnoreCase("synapse-started") || newValidEvent.scanStatus().equalsIgnoreCase("synapse-completed") || newValidEvent.scanStatus().equalsIgnoreCase("synapse-failed");
+            final boolean isSynapseQuery = newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_STARTED) || newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_COMPLETED) || newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_FAILED);
             if (isSynapseQuery) {
                 log.info("Ignoring synapse event without prior state (barcode={}, status={}, sourceService={})", newValidEvent.slideBarcode(), newValidEvent.scanStatus(), newValidEvent.sourceService());
                 return Mono.empty();
@@ -298,7 +298,7 @@ public class SlideScanStatusService {
             newPercent = lastScanPercent;
         } else if (ENRICHMENT_IN_PROGRESS_STATUS.equalsIgnoreCase(status)) {
             newPercent = lastScanPercent <= 40 ? lastScanPercent + configPercentageByScanStatus : lastScanPercent;
-        } else if ("enrichment-completed".equalsIgnoreCase(status)) {
+        } else if (ENRICHMENT_COMPLETED.equalsIgnoreCase(status)) {
             newPercent = 50.0;
         } else {
             newPercent = lastScanPercent + configPercentageByScanStatus;
@@ -319,21 +319,21 @@ public class SlideScanStatusService {
         newProgressEvent.add(buildScanProgressEvent(newEvent));
 
         Set<String> scanEvents = newProgressEvent.stream().map(ScanStatus::scanStatus).collect(Collectors.toSet());
-        if (scanEvents.contains("enrichment-completed") && scanEvents.contains("exported") && scanEvents.contains("synapse-completed") && scanEvents.contains("ibex-classification-finished")) {
+        if (scanEvents.contains(ENRICHMENT_COMPLETED) && scanEvents.contains(SCAN_STATUS_EXPORTED) && scanEvents.contains(SYNAPSE_COMPLETED) && scanEvents.contains(IBEX_CLASSIFICATION_FINISHED)) {
             newProgressPercentage = 100.0;
         }
         String status = setSlideScanStatus(newProgressPercentage, newEvent.scanStatus(), lastScanEvent);
         Update update = new Update()
-                .set("scanStatus", status)
-                .set("progressPercent", newProgressPercentage)
+                .set(SCAN_STATUS, status)
+                .set(PROGRESS_PERCENT, newProgressPercentage)
                 .set(UPDATED_AT, Instant.now())
                 .set(PROGRESS_EVENTS, newProgressEvent)
-                .setOnInsert("createdAt", Instant.now())
+                .setOnInsert(CREATED_AT, Instant.now())
                 .setOnInsert(SLIDE_BARCODE, newEvent.slideBarcode())
-                .setOnInsert("deviceSerialNumber", newEvent.deviceSerialNumber());
+                .setOnInsert(DEVICE_SERIAL_NUMBER, newEvent.deviceSerialNumber());
 
         if (StringUtils.hasText(newEvent.accessionNumber())) {
-            update.set("accessionNumber", newEvent.accessionNumber());
+            update.set(ACCESSION_NUMBER, newEvent.accessionNumber());
         }
         if (StringUtils.hasText(newEvent.seriesId())) {
             update.set(SERIES_ID, newEvent.seriesId());
@@ -350,15 +350,15 @@ public class SlideScanStatusService {
         resetEvents.add(buildScanProgressEvent(newEvent));
 
         return new Update()
-                .push("scanHistory", historySnapshot)
+                .push(SCAN_HISTORY, historySnapshot)
                 .set(PROGRESS_EVENTS, resetEvents)
-                .set("progressPercent", newPercent)
-                .set("scanStatus", newEvent.scanStatus())
+                .set(PROGRESS_PERCENT, newPercent)
+                .set(SCAN_STATUS, newEvent.scanStatus())
                 .set(SERIES_ID, newEvent.seriesId())
                 .set(UPDATED_AT, Instant.now())
-                .setOnInsert("createdAt", Instant.now())
+                .setOnInsert(CREATED_AT, Instant.now())
                 .setOnInsert(SLIDE_BARCODE, newEvent.slideBarcode())
-                .setOnInsert("deviceSerialNumber", newEvent.deviceSerialNumber());
+                .setOnInsert(DEVICE_SERIAL_NUMBER, newEvent.deviceSerialNumber());
 
     }
 
