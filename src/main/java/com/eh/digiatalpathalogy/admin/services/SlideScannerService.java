@@ -113,9 +113,7 @@ public class SlideScannerService {
                 .doOnNext(oldData -> log.info("updateByDeviceSerialNumber: fetched oldData DeviceSerialNumber={} oldData={}", deviceSerialNumber, describe(oldData)))
                 .flatMap(existing -> {
                     SlideScanner oldData = snapshot(existing);
-
                     applyUpdates(existing, updates);
-
                     if (incomingResearch && StringUtils.hasText(incomingDicomStore)) {
                         existing.setDepartment(null);
                         existing.setDicomStore(null);

@@ -41,7 +41,7 @@ public class SlideScannerController {
 
     @PatchMapping("{deviceSerialNumber}")
     public Mono<SlideScanner> update(@PathVariable String deviceSerialNumber, @RequestBody(required = false) Map<String, Object> body) {
-        return slideScannerService.updateByDeviceSerialNumber(deviceSerialNumber, body == null ? Map.of() : body);
+        return slideScannerService.updateByDeviceSerialNumber(deviceSerialNumber, body);
     }
 
     @GetMapping("{id}/reports")
