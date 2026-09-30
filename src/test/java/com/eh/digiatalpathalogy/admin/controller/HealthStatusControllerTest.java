@@ -215,32 +215,54 @@ class HealthStatusControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/health/status → 5xx when pingAllIcmp throws exception")
-    void getHealthStatus_failed_whenPingAllIcmpThrows_returns5xx() {
+    @DisplayName("GET /api/health/status -> 5xx when checkIcmpEndpoints throws exception")
+    void getHealthStatus_failed_whenCheckIcmpEndpointsThrows_returns5xx() {
 
-        HostInfo dbHostInfo = new HostInfo("10.1001.10.1",8080,"eh-database-connector","Database Service");
-        HostInfo receiverHostInfo = new HostInfo("10.1001.10.2",8081,"eh-dicom-receiver","Dicom Receiver Service");
+        HostInfo dbHostInfo =
+                new HostInfo("10.100.10.1", 8080, "eh-database-connector", "Database Service");
+
+        HostInfo receiverHostInfo =
+                new HostInfo("10.100.10.2", 8081, "eh-dicom-receiver", "Dicom Receiver Service");
+
         Set<HostInfo> microServices = Set.of(dbHostInfo, receiverHostInfo);
 
-        when(healthStatusService.resolveCoreDependencies()).thenReturn(Mono.just(Map.of("kafka", "UP", "mongodb", "UP", "redis", "UNKNOWN")));
+        when(healthStatusService.resolveCoreDependencies())
+                .thenReturn(Mono.just(Map.of(
+                        "kafka", "UP",
+                        "mongodb", "UP",
+                        "redis", "UNKNOWN"
+                )));
+
         when(props.getMicroservices()).thenReturn(microServices);
+
         when(props.getThirdParties()).thenReturn(List.of(
                 target("Clinysis", "111.11.111.11"),
                 target("IBEX", "22.222.222.22"),
-
-
-
-
-
-
-
                 target("Synapse", "33.333.333.33")
         ));
-        when(healthStatusService.checkHttpEndpoints(microServices)).thenReturn(Mono.just(List.of(
-                new HealthStatusResult("UP", "http://10.1001.10.1:8080/actuator/health", "Database Service", 200, 10, null),
-                new HealthStatusResult("UP", "http://10.1001.10.2:8081/actuator/health", "Dicom Receiver Service", 200, 11, null)
-        )));
-        when(healthStatusService.checkIcmpEndpoints(anyList())).thenReturn(Mono.error(new RuntimeException("icmp failed")));
+
+        when(healthStatusService.checkHttpEndpoints(microServices))
+                .thenReturn(Mono.just(List.of(
+                        new HealthStatusResult(
+                                "UP",
+                                "http://10.100.10.1:8080/actuator/health",
+                                "Database Service",
+                                200,
+                                10,
+                                null
+                        ),
+                        new HealthStatusResult(
+                                "UP",
+                                "http://10.100.10.2:8081/actuator/health",
+                                "Dicom Receiver Service",
+                                200,
+                                11,
+                                null
+                        )
+                )));
+
+        when(healthStatusService.checkIcmpEndpoints(anyList()))
+                .thenReturn(Mono.error(new RuntimeException("icmp failed")));
 
         webTestClient.get()
                 .uri("/api/health/status")
@@ -248,6 +270,7 @@ class HealthStatusControllerTest {
                 .expectStatus().is5xxServerError();
 
         verify(healthStatusService).resolveCoreDependencies();
+        verify(healthStatusService).checkHttpEndpoints(microServices);
         verify(healthStatusService).checkIcmpEndpoints(anyList());
     }
 

@@ -19,13 +19,10 @@ import reactor.core.publisher.Mono;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import static com.eh.digiatalpathalogy.admin.constant.SlideScannerFields.IP_ADDRESS;
-import static com.eh.digiatalpathalogy.admin.constant.SlideScannerFields.MODEL;
 import static com.eh.digiatalpathalogy.admin.testdata.SlideScannerTestData.scanner;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -99,13 +96,12 @@ class SlideScannerControllerTest {
     @Test
     @DisplayName("PATCH /api/scanners/{deviceSerialNumber} → 200 & body")
     void patch_scanner_ok() {
-        SlideScanner update = new SlideScanner();
-        update.setResearch(Boolean.TRUE);
+        Map<String, Object> update = Map.of("research", true);
 
         SlideScanner updated = scanner("SS12118");
         updated.setResearch(Boolean.TRUE);
 
-        given(slideScannerService.updateByDeviceSerialNumber(eq("SS12118"), any(SlideScanner.class), anySet()))
+        given(slideScannerService.updateByDeviceSerialNumber(eq("SS12118"), anyMap()))
                 .willReturn(Mono.just(updated));
 
         webTestClient.patch()
@@ -121,16 +117,16 @@ class SlideScannerControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /api/scanners/{deviceSerialNumber} → raw JSON with explicit null (as the real UI sends after sanitizeFormData) → captured correctly")
+    @DisplayName("PATCH /api/scanners/{deviceSerialNumber} → raw JSON with explicit null (as the real UI sends after sanitizeFormData) → passed through to the service unchanged")
     void patch_scanner_explicitJsonNull_capturedCorrectly() {
         SlideScanner updated = scanner("SS12118");
 
-        given(slideScannerService.updateByDeviceSerialNumber(eq("SS12118"), any(SlideScanner.class), anySet()))
+        given(slideScannerService.updateByDeviceSerialNumber(eq("SS12118"), anyMap()))
                 .willReturn(Mono.just(updated));
 
         Map<String, Object> rawBody = new LinkedHashMap<>();
-        rawBody.put(MODEL, null);
-        rawBody.put(IP_ADDRESS, "10.0.0.99");
+        rawBody.put("model", null);
+        rawBody.put("ipAddress", "10.0.0.99");
         rawBody.put("deviceSerialNumber", "SS12118");
 
         webTestClient.patch()
@@ -141,19 +137,15 @@ class SlideScannerControllerTest {
                 .exchange()
                 .expectStatus().isOk();
 
-        ArgumentCaptor<SlideScanner> patchCaptor = ArgumentCaptor.forClass(SlideScanner.class);
-        ArgumentCaptor<Set<String>> fieldsCaptor = ArgumentCaptor.forClass(Set.class);
-        verify(slideScannerService).updateByDeviceSerialNumber(eq("SS12118"), patchCaptor.capture(), fieldsCaptor.capture());
+        ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(slideScannerService).updateByDeviceSerialNumber(eq("SS12118"), bodyCaptor.capture());
 
-        SlideScanner captured = patchCaptor.getValue();
-        Set<String> presentFields = fieldsCaptor.getValue();
+        Map<String, Object> captured = bodyCaptor.getValue();
 
-        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains(MODEL),
-                "presentFields should contain 'model' even though its value is JSON null: " + presentFields);
-        org.junit.jupiter.api.Assertions.assertTrue(presentFields.contains(IP_ADDRESS),
-                "presentFields should contain 'ipAddress': " + presentFields);
-        org.junit.jupiter.api.Assertions.assertNull(captured.getModel(), "model should deserialize to null");
-        org.junit.jupiter.api.Assertions.assertEquals("10.0.0.99", captured.getIpAddress());
+        org.junit.jupiter.api.Assertions.assertTrue(captured.containsKey("model"),
+                "body should contain 'model' key even though its value is JSON null: " + captured);
+        org.junit.jupiter.api.Assertions.assertNull(captured.get("model"), "model should deserialize to null");
+        org.junit.jupiter.api.Assertions.assertEquals("10.0.0.99", captured.get("ipAddress"));
     }
 
     @Test

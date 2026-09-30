@@ -35,6 +35,7 @@ public class SlideScanner {
     private String remoteAeTitle;
     private String remoteHost;
     private Integer remotePort;
+    @NotBlank
     private String storageStrategy;
 
     public String getId() {

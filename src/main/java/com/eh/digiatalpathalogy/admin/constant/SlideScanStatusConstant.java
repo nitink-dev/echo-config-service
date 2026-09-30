@@ -48,4 +48,3 @@ public final class SlideScanStatusConstant {
     public static final String SCAN_HISTORY = "scanHistory";
 
 }
-

@@ -12,8 +12,6 @@ import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -22,11 +20,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.DEFAULT_APPLICATION;
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.RESEARCH_DICOM_STORE;
@@ -57,7 +53,6 @@ public class SlideScannerService {
     }
 
     public Flux<SlideScanner> list() {
-
         return redisStore.findByPatternWithFallback(SCANNER_DEVICE_PREFIX + ":all:", slideScanner -> true,
                         slideScannerRepository::findAll,
                         SlideScanner::getDeviceSerialNumber, SlideScanner.class)
@@ -65,7 +60,6 @@ public class SlideScannerService {
                 .doOnSubscribe(sub -> log.debug("Starting retrieval of all slide scanners"))
                 .doOnComplete(() -> log.debug("Completed retrieval of all slide scanners"));
     }
-
     public Mono<SlideScanner> getByDeviceSerialNumber(String deviceSerialNumber) {
         String deviceKey = SCANNER_DEVICE_PREFIX + deviceSerialNumber;
         return redisStore.findByKeyWithFallback(deviceKey, () -> findByDeviceSerialNumber(deviceSerialNumber)
@@ -100,44 +94,38 @@ public class SlideScannerService {
                 })
                 .doOnError(error -> log.error("Slide scanner creation failed: {}", error.getMessage(), error));
     }
-    public Mono<SlideScanner> updateByDeviceSerialNumber(String deviceSerialNumber, SlideScanner slideScanner) {
-        return updateByDeviceSerialNumber(deviceSerialNumber, slideScanner, inferPresentFields(slideScanner));
-    }
 
-    public Mono<SlideScanner> updateByDeviceSerialNumber(String deviceSerialNumber, SlideScanner slideScanner, Set<String> presentFields) {
+    public Mono<SlideScanner> updateByDeviceSerialNumber(String deviceSerialNumber, Map<String, Object> updates) {
 
         if (!StringUtils.hasText(deviceSerialNumber)) {
             return Mono.error(new HttpRequestException(HttpStatus.BAD_REQUEST, "DeviceSerialNumber must not be blank."));
         }
-        if (slideScanner == null) {
+        if (updates == null) {
             return Mono.error(new HttpRequestException(HttpStatus.BAD_REQUEST, "Update payload must not be null."));
         }
-        final Set<String> fields = presentFields == null ? inferPresentFields(slideScanner) : presentFields;
-        final boolean incomingResearch = Boolean.TRUE.equals(slideScanner.getResearch());
-        final String incomingDicomStore = slideScanner.getDicomStore();
 
-        log.info("updateByDeviceSerialNumber: START DeviceSerialNumber={} incomingPatch={}", deviceSerialNumber, describe(slideScanner));
+        final boolean incomingResearch = Boolean.TRUE.equals(updates.get(RESEARCH));
+        final String incomingDicomStore = (String) updates.get(DICOM_STORE);
 
-        Query query = buildDeviceSerialNumberQuery(deviceSerialNumber);
+        log.info("updateByDeviceSerialNumber: START DeviceSerialNumber={} updates={}", deviceSerialNumber, updates);
+
         return getByDeviceSerialNumber(deviceSerialNumber)
                 .doOnNext(oldData -> log.info("updateByDeviceSerialNumber: fetched oldData DeviceSerialNumber={} oldData={}", deviceSerialNumber, describe(oldData)))
-                .flatMap(oldData -> {
-                    fillMissingFields(slideScanner, oldData, fields);
-                    clearExplicitlyBlankFields(slideScanner, fields);
-                    slideScanner.setId(null);
-                    slideScanner.setDeviceSerialNumber(null);
+                .flatMap(existing -> {
+                    SlideScanner oldData = snapshot(existing);
+
+                    applyUpdates(existing, updates);
 
                     if (incomingResearch && StringUtils.hasText(incomingDicomStore)) {
-                        slideScanner.setDepartment(null);
-                        slideScanner.setDicomStore(null);
+                        existing.setDepartment(null);
+                        existing.setDicomStore(null);
                         log.info("updateByDeviceSerialNumber: research+dicomStore clear rule fired DeviceSerialNumber={}", deviceSerialNumber);
                     }
 
-                    log.info("updateByDeviceSerialNumber: patch after merge (this is what gets $set to Mongo) DeviceSerialNumber={} mergedPatch={}", deviceSerialNumber, describe(slideScanner));
+                    log.info("updateByDeviceSerialNumber: entity after merge (this is what gets saved) DeviceSerialNumber={} merged={}", deviceSerialNumber, describe(existing));
 
-                    return slideScannerRepository.findAndModify(query, slideScanner, true)
-                            .switchIfEmpty(Mono.error(new ResourceNotFoundException("Slide scanner not found with DeviceID: " + deviceSerialNumber)))
-                            .doOnNext(updated -> log.info("updateByDeviceSerialNumber: Mongo findAndModify result DeviceSerialNumber={} updated={}", deviceSerialNumber, describe(updated)))
+                    return slideScannerRepository.save(existing)
+                            .doOnNext(updated -> log.info("updateByDeviceSerialNumber: Mongo save result DeviceSerialNumber={} updated={}", deviceSerialNumber, describe(updated)))
                             .flatMap(updated -> {
                                 Mono<Void> invalidateCache = redisStore.deleteKeysByPattern(SCANNER_DEVICE_PREFIX + "*")
                                         .then(redisStore.deleteKeysByPattern(DICOM_RECEIVER_SCANNER_DEVICE_PREFIX + "*"))
@@ -154,58 +142,64 @@ public class SlideScannerService {
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));
     }
 
-    private static Set<String> inferPresentFields(SlideScanner patch) {
-        Set<String> fields = new HashSet<>();
-        if (patch == null) return fields;
-        if (patch.getName() != null) fields.add("name");
-        if (patch.getModel() != null) fields.add("model");
-        if (patch.getScannerType() != null) fields.add("scannerType");
-        if (patch.getLocation() != null) fields.add("location");
-        if (patch.getDepartment() != null) fields.add("department");
-        if (patch.getDicomStore() != null) fields.add("dicomStore");
-        if (patch.getAeTitle() != null) fields.add("aeTitle");
-        if (patch.getPort() != null) fields.add("port");
-        if (patch.getHospitalName() != null) fields.add("hospitalName");
-        if (patch.getIpAddress() != null) fields.add("ipAddress");
-        if (patch.getVendor() != null) fields.add("vendor");
-        if (patch.getResearch() != null) fields.add("research");
-        if (patch.getConnected() != null) fields.add("connected");
-        if (patch.getRemoteAeTitle() != null) fields.add("remoteAeTitle");
-        if (patch.getRemoteHost() != null) fields.add("remoteHost");
-        if (patch.getRemotePort() != null) fields.add("remotePort");
-        if (patch.getStorageStrategy() != null) fields.add("storageStrategy");
-        return fields;
+    private void applyUpdates(SlideScanner entity, Map<String, Object> updates) {
+        if (updates.containsKey(NAME)) entity.setName((String) updates.get(NAME));
+        if (updates.containsKey(MODEL)) entity.setModel(blankToNull((String) updates.get(MODEL)));
+        if (updates.containsKey(SCANNER_TYPE)) entity.setScannerType((String) updates.get(SCANNER_TYPE));
+        if (updates.containsKey(LOCATION)) entity.setLocation((String) updates.get(LOCATION));
+        if (updates.containsKey(DEPARTMENT)) entity.setDepartment((String) updates.get(DEPARTMENT));
+        if (updates.containsKey(DICOM_STORE)) entity.setDicomStore((String) updates.get(DICOM_STORE));
+        if (updates.containsKey(AE_TITLE)) entity.setAeTitle((String) updates.get(AE_TITLE));
+        if (updates.containsKey(PORT)) entity.setPort(blankToNull((String) updates.get(PORT)));
+        if (updates.containsKey(HOSPITAL_NAME)) entity.setHospitalName(blankToNull((String) updates.get(HOSPITAL_NAME)));
+        if (updates.containsKey(IP_ADDRESS)) entity.setIpAddress(blankToNull((String) updates.get(IP_ADDRESS)));
+        if (updates.containsKey(VENDOR)) entity.setVendor(blankToNull((String) updates.get(VENDOR)));
+        if (updates.containsKey(RESEARCH)) entity.setResearch((Boolean) updates.get(RESEARCH));
+        if (updates.containsKey(CONNECTED)) entity.setConnected((Boolean) updates.get(CONNECTED));
+        if (updates.containsKey(REMOTE_AE_TITLE)) entity.setRemoteAeTitle(blankToNull((String) updates.get(REMOTE_AE_TITLE)));
+        if (updates.containsKey(REMOTE_HOST)) entity.setRemoteHost(blankToNull((String) updates.get(REMOTE_HOST)));
+        if (updates.containsKey(REMOTE_PORT)) entity.setRemotePort(toInteger(updates.get(REMOTE_PORT)));
+        if (updates.containsKey(STORAGE_STRATEGY)) entity.setStorageStrategy(blankToNull((String) updates.get(STORAGE_STRATEGY)));
     }
 
-    private void fillMissingFields(SlideScanner patch, SlideScanner existing, Set<String> presentFields) {
-        if (!presentFields.contains(NAME)) patch.setName(existing.getName());
-        if (!presentFields.contains(MODEL)) patch.setModel(existing.getModel());
-        if (!presentFields.contains(SCANNER_TYPE)) patch.setScannerType(existing.getScannerType());
-        if (!presentFields.contains(LOCATION)) patch.setLocation(existing.getLocation());
-        if (!presentFields.contains(DEPARTMENT)) patch.setDepartment(existing.getDepartment());
-        if (!presentFields.contains(DICOM_STORE)) patch.setDicomStore(existing.getDicomStore());
-        if (!presentFields.contains(AE_TITLE)) patch.setAeTitle(existing.getAeTitle());
-        if (!presentFields.contains(PORT)) patch.setPort(existing.getPort());
-        if (!presentFields.contains(HOSPITAL_NAME)) patch.setHospitalName(existing.getHospitalName());
-        if (!presentFields.contains(IP_ADDRESS)) patch.setIpAddress(existing.getIpAddress());
-        if (!presentFields.contains(VENDOR)) patch.setVendor(existing.getVendor());
-        if (!presentFields.contains(RESEARCH)) patch.setResearch(existing.getResearch());
-        if (!presentFields.contains(CONNECTED)) patch.setConnected(existing.getConnected());
-        if (!presentFields.contains(REMOTE_AE_TITLE)) patch.setRemoteAeTitle(existing.getRemoteAeTitle());
-        if (!presentFields.contains(REMOTE_HOST)) patch.setRemoteHost(existing.getRemoteHost());
-        if (!presentFields.contains(REMOTE_PORT)) patch.setRemotePort(existing.getRemotePort());
-        if (!presentFields.contains(STORAGE_STRATEGY)) patch.setStorageStrategy(existing.getStorageStrategy());
+    private static String blankToNull(String value) {
+        return StringUtils.hasText(value) ? value : null;
     }
 
-    private void clearExplicitlyBlankFields(SlideScanner patch, Set<String> presentFields) {
-        if (presentFields.contains(MODEL) && !StringUtils.hasText(patch.getModel())) patch.setModel(null);
-        if (presentFields.contains(PORT) && !StringUtils.hasText(patch.getPort())) patch.setPort(null);
-        if (presentFields.contains(HOSPITAL_NAME) && !StringUtils.hasText(patch.getHospitalName())) patch.setHospitalName(null);
-        if (presentFields.contains(IP_ADDRESS) && !StringUtils.hasText(patch.getIpAddress())) patch.setIpAddress(null);
-        if (presentFields.contains(VENDOR) && !StringUtils.hasText(patch.getVendor())) patch.setVendor(null);
-        if (presentFields.contains(REMOTE_AE_TITLE) && !StringUtils.hasText(patch.getRemoteAeTitle())) patch.setRemoteAeTitle(null);
-        if (presentFields.contains(REMOTE_HOST) && !StringUtils.hasText(patch.getRemoteHost())) patch.setRemoteHost(null);
-        if (presentFields.contains(STORAGE_STRATEGY) && !StringUtils.hasText(patch.getStorageStrategy())) patch.setStorageStrategy(null);
+    private static Integer toInteger(Object value) {
+        if (value == null) return null;
+        if (value instanceof Integer) return (Integer) value;
+        if (value instanceof Number) return ((Number) value).intValue();
+        try {
+            String text = value.toString().trim();
+            return text.isEmpty() ? null : Integer.valueOf(text);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private SlideScanner snapshot(SlideScanner s) {
+        SlideScanner copy = new SlideScanner();
+        copy.setId(s.getId());
+        copy.setDeviceSerialNumber(s.getDeviceSerialNumber());
+        copy.setName(s.getName());
+        copy.setModel(s.getModel());
+        copy.setScannerType(s.getScannerType());
+        copy.setLocation(s.getLocation());
+        copy.setDepartment(s.getDepartment());
+        copy.setDicomStore(s.getDicomStore());
+        copy.setAeTitle(s.getAeTitle());
+        copy.setPort(s.getPort());
+        copy.setHospitalName(s.getHospitalName());
+        copy.setIpAddress(s.getIpAddress());
+        copy.setVendor(s.getVendor());
+        copy.setResearch(s.getResearch());
+        copy.setConnected(s.getConnected());
+        copy.setRemoteAeTitle(s.getRemoteAeTitle());
+        copy.setRemoteHost(s.getRemoteHost());
+        copy.setRemotePort(s.getRemotePort());
+        copy.setStorageStrategy(s.getStorageStrategy());
+        return copy;
     }
 
     private String describe(SlideScanner s) {
@@ -230,10 +224,6 @@ public class SlideScannerService {
                 + ", remotePort=" + s.getRemotePort()
                 + ", storageStrategy=" + s.getStorageStrategy()
                 + "}";
-    }
-
-    private Query buildDeviceSerialNumberQuery(String deviceSerialNumber) {
-        return Query.query(Criteria.where("deviceSerialNumber").is(deviceSerialNumber));
     }
 
     private Mono<String> researchDicomUrlCached() {
