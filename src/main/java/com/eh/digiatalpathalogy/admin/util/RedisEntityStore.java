@@ -11,7 +11,6 @@ import org.springframework.data.redis.connection.Limit;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -54,6 +53,13 @@ public class RedisEntityStore {
                 .doOnError(e -> log.error("Failed to save [{}] to Redis with key: {}:: {}", value.getClass().getSimpleName(), key, e.getMessage()));
     }
 
+    private <T> Mono<Boolean> safeSet(String key, T value, Duration ttl) {
+        return redisTemplate.opsForValue().set(key, value, ttl)
+                .doOnSuccess(s -> log.debug("Saved [{}] to Redis with key: {} TTL: {}", value.getClass().getSimpleName(), key, ttl))
+                .onErrorResume(this::isRedisUnavailable, e -> Mono.just(false))
+                .doOnError(e -> log.error("Failed to save [{}] to Redis with key: {}", value.getClass().getSimpleName(), key, e));
+    }
+
     private <T> Mono<T> safeGet(String key, Class<T> type) {
         return redisTemplate.opsForValue().get(key)
                 .map(obj -> objectMapper.convertValue(obj, type))
@@ -79,10 +85,10 @@ public class RedisEntityStore {
     private Mono<List<String>> safeKeysAsList(String pattern) {
         return redisTemplate.keys(pattern)
                 .collectList()
-                .onErrorResume(this::isRedisUnavailable, e ->{
+                .onErrorResume(this::isRedisUnavailable, e -> {
                     log.warn(ERROR_REDIS_NOT_AVAILABLE, pattern);
                     return Mono.just(Collections.emptyList());
-                } )
+                })
                 .doOnError(e -> log.error("Error scanning keys for pattern '{}' with error: {}", pattern, e.getMessage()));
     }
 
@@ -92,6 +98,14 @@ public class RedisEntityStore {
             return Mono.just(false);
         }
         return safeSet(key, value);
+    }
+
+    public <T> Mono<Boolean> save(String key, T value, Duration ttl) {
+        if (key == null || value == null) {
+            log.warn("Attempted to save null key or value");
+            return Mono.just(false);
+        }
+        return safeSet(key, value, ttl);
     }
 
     public <T> Mono<T> findByKey(String key, Class<T> type) {

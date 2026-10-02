@@ -11,6 +11,7 @@ import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
 import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -112,8 +113,9 @@ public class SlideScannerService {
         return getByDeviceSerialNumber(deviceSerialNumber)
                 .doOnNext(oldData -> log.info("updateByDeviceSerialNumber: fetched oldData DeviceSerialNumber={} oldData={}", deviceSerialNumber, describe(oldData)))
                 .flatMap(existing -> {
-                    SlideScanner oldData = snapshot(existing);
+                    SlideScanner backupScannerObj = takeBackup(existing);
                     applyUpdates(existing, updates);
+                    // when scanner is of type research
                     if (incomingResearch && StringUtils.hasText(incomingDicomStore)) {
                         existing.setDepartment(null);
                         existing.setDicomStore(null);
@@ -132,7 +134,7 @@ public class SlideScannerService {
                                 return Mono.whenDelayError(invalidateCache)
                                         .then(result)
                                         .doOnNext(finalResult -> log.info("updateByDeviceSerialNumber: finalResult DeviceSerialNumber={} finalResult={}", deviceSerialNumber, describe(finalResult)))
-                                        .flatMap(finalResult -> notificationService.notifyEntityChange(NotificationEntityType.SCANNER.getKey(), oldData, finalResult)
+                                        .flatMap(finalResult -> notificationService.notifyEntityChange(NotificationEntityType.SCANNER.getKey(), backupScannerObj, finalResult)
                                                 .thenReturn(finalResult));
                             });
                 })
@@ -176,27 +178,10 @@ public class SlideScannerService {
         }
     }
 
-    private SlideScanner snapshot(SlideScanner s) {
+    private SlideScanner takeBackup(SlideScanner s) {
         SlideScanner copy = new SlideScanner();
-        copy.setId(s.getId());
-        copy.setDeviceSerialNumber(s.getDeviceSerialNumber());
-        copy.setName(s.getName());
-        copy.setModel(s.getModel());
-        copy.setScannerType(s.getScannerType());
-        copy.setLocation(s.getLocation());
-        copy.setDepartment(s.getDepartment());
-        copy.setDicomStore(s.getDicomStore());
-        copy.setAeTitle(s.getAeTitle());
-        copy.setPort(s.getPort());
-        copy.setHospitalName(s.getHospitalName());
-        copy.setIpAddress(s.getIpAddress());
-        copy.setVendor(s.getVendor());
-        copy.setResearch(s.getResearch());
-        copy.setConnected(s.getConnected());
-        copy.setRemoteAeTitle(s.getRemoteAeTitle());
-        copy.setRemoteHost(s.getRemoteHost());
-        copy.setRemotePort(s.getRemotePort());
-        copy.setStorageStrategy(s.getStorageStrategy());
+        BeanUtils.copyProperties(s, copy);
+        log.info("takeBackup for comparison :  BackupObj={}",  describe(s));
         return copy;
     }
 

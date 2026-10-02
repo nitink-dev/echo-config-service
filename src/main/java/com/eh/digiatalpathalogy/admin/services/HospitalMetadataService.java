@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,7 +52,7 @@ public class HospitalMetadataService {
                     return new HospitalMetadataDTO(List.copyOf(distinctHospitalNames), List.copyOf(distinctLocations)
                     );
                 })
-                .flatMap(metadata -> redisStore.save(METADATA_HOSPITAL, metadata)
+                .flatMap(metadata -> redisStore.save(METADATA_HOSPITAL, metadata, Duration.ofHours(24))
                         .onErrorResume(e -> {
                             log.warn("Failed to cache hospital metadata", e);
                             return Mono.empty();
