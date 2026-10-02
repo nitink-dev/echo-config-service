@@ -1,6 +1,8 @@
 package com.eh.digiatalpathalogy.admin.services;
 
+import com.eh.digiatalpathalogy.admin.config.FormLabelsProperties;
 import com.eh.digiatalpathalogy.admin.config.KafkaTopicConfig;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,12 +34,16 @@ class NotificationServiceTest {
     @Mock
     private KafkaTopicConfig kafkaTopicConfig;
 
+    @Mock
+    private FormLabelsProperties formLabelsProperties;
+
     private NotificationService notificationService;
 
     @BeforeEach
     void setUp() throws Exception {
-        notificationService = new NotificationService(sender, kafkaTopicConfig);
+        notificationService = new NotificationService(sender, kafkaTopicConfig, formLabelsProperties, new ObjectMapper());
         lenient( ).when( kafkaTopicConfig.getEmail( ) ).thenReturn( "email-svc-topic" );
+        lenient( ).when( formLabelsProperties.getForms( ) ).thenReturn( Map.of( ) );
     }
 
     @SuppressWarnings("unchecked")
