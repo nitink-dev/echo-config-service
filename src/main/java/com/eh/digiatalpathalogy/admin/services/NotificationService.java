@@ -1,11 +1,8 @@
 package com.eh.digiatalpathalogy.admin.services;
 
-import com.eh.digiatalpathalogy.admin.config.FormLabelsProperties;
 import com.eh.digiatalpathalogy.admin.config.KafkaTopicConfig;
 import com.eh.digiatalpathalogy.admin.model.EntityChangeNotification;
 import com.eh.digiatalpathalogy.admin.model.NotificationEntityType;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,9 +11,6 @@ import reactor.core.publisher.Mono;
 import reactor.kafka.sender.KafkaSender;
 import reactor.kafka.sender.SenderRecord;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 @Service
 public class NotificationService {
 
@@ -24,14 +18,10 @@ public class NotificationService {
 
     private final KafkaSender< String, Object > sender;
     private final KafkaTopicConfig kafkaTopicConfig;
-    private final FormLabelsProperties formLabelsProperties;
-    private final ObjectMapper objectMapper;
 
-    public NotificationService ( KafkaSender< String, Object > sender, KafkaTopicConfig kafkaTopicConfig, FormLabelsProperties formLabelsProperties, ObjectMapper objectMapper ) {
+    public NotificationService ( KafkaSender< String, Object > sender, KafkaTopicConfig kafkaTopicConfig ) {
         this.sender = sender;
         this.kafkaTopicConfig = kafkaTopicConfig;
-        this.formLabelsProperties = formLabelsProperties;
-        this.objectMapper = objectMapper;
     }
 
     public < T > Mono< Void > notifyEntityChange ( String rawEntityType, T oldData, T newData ) {
@@ -42,10 +32,7 @@ public class NotificationService {
         final String TEMPLATE_KEY = newData == null ? "ENTITY_DELETE_DEFAULT" : oldData == null ? "ENTITY_CREATE_DEFAULT" : "ENTITY_CHANGE_DEFAULT";
         log.info( "Resolved template key='{}' for entityType='{}'. Operation={}", TEMPLATE_KEY, entityType, newData == null ? "DELETE" : oldData == null ? "CREATE" : "UPDATE" );
 
-        Object normalizedOldData = normalizeKeys( rawEntityType, oldData );
-        Object normalizedNewData = normalizeKeys( rawEntityType, newData );
-
-        EntityChangeNotification< Object > notification = new EntityChangeNotification<>( TEMPLATE_KEY, entityType, normalizedOldData, normalizedNewData );
+        EntityChangeNotification< T > notification = new EntityChangeNotification<>( TEMPLATE_KEY, entityType, oldData, newData );
         log.info( "Created EntityChangeNotification object. entityType='{}', templateKey='{}'", entityType, TEMPLATE_KEY );
 
         return Mono.fromCallable( ( ) -> {
@@ -70,19 +57,5 @@ public class NotificationService {
                     log.info( "Err-Suppressed notification failure for entityType='{}'. Application flow will continue.", entityType, error );
                     return Mono.empty( );
                 } ).then( );
-    }
-
-    private Object normalizeKeys ( String rawEntityType, Object data ) {
-        if ( data == null ) {
-            return null;
-        }
-        Map< String, String > labels = formLabelsProperties.getForms( ).get( rawEntityType );
-        if ( labels == null || labels.isEmpty( ) ) {
-            return data;
-        }
-        Map< String, Object > source = objectMapper.convertValue( data, new TypeReference< LinkedHashMap< String, Object > >( ) {} );
-        Map< String, Object > normalized = new LinkedHashMap<>( );
-        source.forEach( ( key, value ) -> normalized.put( labels.getOrDefault( key, key ), value ) );
-        return normalized;
     }
 }
