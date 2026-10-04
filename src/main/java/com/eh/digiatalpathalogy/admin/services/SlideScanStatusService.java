@@ -172,7 +172,7 @@ public class SlideScanStatusService {
         if (!signal.hasValue()) {
             final boolean isSynapseQuery = newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_STARTED) || newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_COMPLETED) || newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_FAILED);
             if (isSynapseQuery) {
-                log.debug("Ignoring synapse event without prior state (barcode={}, status={}, sourceService={})", newValidEvent.slideBarcode(), newValidEvent.scanStatus(), newValidEvent.sourceService());
+                log.info("Ignoring synapse event without prior state (barcode={}, status={}, sourceService={})", newValidEvent.slideBarcode(), newValidEvent.scanStatus(), newValidEvent.sourceService());
                 return Mono.empty();
             }
             if (!StringUtils.hasText(newValidEvent.seriesId())) {
@@ -206,8 +206,7 @@ public class SlideScanStatusService {
             return Mono.error(new InvalidScanProgressException(barcode, "slideBarcode is null or blank"));
         }
         if (configStore.getValidScanStatus() == null || !configStore.getValidScanStatus().contains(event.scanStatus())) {
-            log.warn("Scan status validation failed (barcode={}, sourceService={}, receivedStatus={}, configuredStatuses={}, reason={})", barcode, event.sourceService(), event.scanStatus(),
-                    configStore.getValidScanStatus(), configStore.getValidScanStatus() == null ? "valid scan status configuration is null" : "received status not in configured valid scan statuses");
+            log.warn("Invalid scan status received (barcode={}, sourceService={}, status={})", barcode, event.sourceService(), event.scanStatus());
             return Mono.error(new InvalidScanProgressException(barcode, "Scan service: " + event.sourceService() + " Invalid scan status: " + event.scanStatus()));
         }
         return Mono.just(event);
