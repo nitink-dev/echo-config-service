@@ -160,7 +160,7 @@ class SlideScannerServiceTest {
                         && "digital-pathology-dataset".equals(payload.getDepartment())
                         && "projects/p1/locations/l1/datasets/d1/dicomStores/store1".equals(payload.getDicomStore())
                         && "SVS_STORE_SCP".equals(payload.getAeTitle())
-                        && "1010".equals(payload.getPort())
+                        && Integer.valueOf(1010).equals(payload.getPort())
                         && "Evanston Hospital".equals(payload.getHospitalName())
                         && "10.0.0.10".equals(payload.getIpAddress())
                         && "Acme".equals(payload.getVendor())
