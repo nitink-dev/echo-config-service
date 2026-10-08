@@ -36,6 +36,7 @@ form-labels:
     eh-dicom-receiver:
       aet: AET
       samIpAddress: SAM Server Address
+      ipAddress: SAM Server Address
       port: Port
       "network-drive": Network Drive
       networkDrive: Network Drive
