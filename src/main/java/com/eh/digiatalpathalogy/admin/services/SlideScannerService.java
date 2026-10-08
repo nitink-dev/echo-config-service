@@ -12,8 +12,6 @@ import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.BeanWrapper;
-import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.DEFAULT_APPLICATION;
 import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.RESEARCH_DICOM_STORE;
@@ -145,23 +142,40 @@ public class SlideScannerService {
                 .doOnError(error -> log.error("Failed to update slide scanner with DeviceSerialNumber={}: {}", deviceSerialNumber, error.getMessage(), error));
     }
 
-    private static final Set<String> READONLY_FIELDS = Set.of(ID, DEVICE_SERIAL_NUMBER);
-    private static final Set<String> BLANK_TO_NULL_FIELDS = Set.of(
-            MODEL, PORT, HOSPITAL_NAME, IP_ADDRESS, VENDOR, REMOTE_AE_TITLE, REMOTE_HOST, REMOTE_PORT, STORAGE_STRATEGY
-    );
-
     private void applyUpdates(SlideScanner entity, Map<String, Object> updates) {
-        BeanWrapper wrapper = new BeanWrapperImpl(entity);
-        updates.forEach((field, value) -> {
-            if (READONLY_FIELDS.contains(field) || !wrapper.isWritableProperty(field)) {
-                return;
-            }
-            Object resolvedValue = value;
-            if (BLANK_TO_NULL_FIELDS.contains(field) && value instanceof String stringValue && !StringUtils.hasText(stringValue)) {
-                resolvedValue = null;
-            }
-            wrapper.setPropertyValue(field, resolvedValue);
-        });
+        if (updates.containsKey(NAME)) entity.setName((String) updates.get(NAME));
+        if (updates.containsKey(MODEL)) entity.setModel(blankToNull((String) updates.get(MODEL)));
+        if (updates.containsKey(SCANNER_TYPE)) entity.setScannerType((String) updates.get(SCANNER_TYPE));
+        if (updates.containsKey(LOCATION)) entity.setLocation((String) updates.get(LOCATION));
+        if (updates.containsKey(DEPARTMENT)) entity.setDepartment((String) updates.get(DEPARTMENT));
+        if (updates.containsKey(DICOM_STORE)) entity.setDicomStore((String) updates.get(DICOM_STORE));
+        if (updates.containsKey(AE_TITLE)) entity.setAeTitle((String) updates.get(AE_TITLE));
+        if (updates.containsKey(PORT)) entity.setPort(blankToNull((String) updates.get(PORT)));
+        if (updates.containsKey(HOSPITAL_NAME)) entity.setHospitalName(blankToNull((String) updates.get(HOSPITAL_NAME)));
+        if (updates.containsKey(IP_ADDRESS)) entity.setIpAddress(blankToNull((String) updates.get(IP_ADDRESS)));
+        if (updates.containsKey(VENDOR)) entity.setVendor(blankToNull((String) updates.get(VENDOR)));
+        if (updates.containsKey(RESEARCH)) entity.setResearch((Boolean) updates.get(RESEARCH));
+        if (updates.containsKey(CONNECTED)) entity.setConnected((Boolean) updates.get(CONNECTED));
+        if (updates.containsKey(REMOTE_AE_TITLE)) entity.setRemoteAeTitle(blankToNull((String) updates.get(REMOTE_AE_TITLE)));
+        if (updates.containsKey(REMOTE_HOST)) entity.setRemoteHost(blankToNull((String) updates.get(REMOTE_HOST)));
+        if (updates.containsKey(REMOTE_PORT)) entity.setRemotePort(toInteger(updates.get(REMOTE_PORT)));
+        if (updates.containsKey(STORAGE_STRATEGY)) entity.setStorageStrategy(blankToNull((String) updates.get(STORAGE_STRATEGY)));
+    }
+
+    private static String blankToNull(String value) {
+        return StringUtils.hasText(value) ? value : null;
+    }
+
+    private static Integer toInteger(Object value) {
+        if (value == null) return null;
+        if (value instanceof Integer) return (Integer) value;
+        if (value instanceof Number) return ((Number) value).intValue();
+        try {
+            String text = value.toString().trim();
+            return text.isEmpty() ? null : Integer.valueOf(text);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private SlideScanner takeBackup(SlideScanner s) {

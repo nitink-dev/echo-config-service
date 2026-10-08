@@ -42,11 +42,10 @@ public class NotificationService {
         final String TEMPLATE_KEY = newData == null ? "ENTITY_DELETE_DEFAULT" : oldData == null ? "ENTITY_CREATE_DEFAULT" : "ENTITY_CHANGE_DEFAULT";
         log.info( "Resolved template key='{}' for entityType='{}'. Operation={}", TEMPLATE_KEY, entityType, newData == null ? "DELETE" : oldData == null ? "CREATE" : "UPDATE" );
 
-        String entityName = resolveEntityName( newData );
         Object normalizedOldData = normalizeKeys( rawEntityType, oldData );
         Object normalizedNewData = normalizeKeys( rawEntityType, newData );
 
-        EntityChangeNotification< Object > notification = new EntityChangeNotification<>( TEMPLATE_KEY, entityType, entityName, normalizedOldData, normalizedNewData );
+        EntityChangeNotification< Object > notification = new EntityChangeNotification<>( TEMPLATE_KEY, entityType, normalizedOldData, normalizedNewData );
         log.info( "Created EntityChangeNotification object. entityType='{}', templateKey='{}'", entityType, TEMPLATE_KEY );
 
         return Mono.fromCallable( ( ) -> {
@@ -71,20 +70,6 @@ public class NotificationService {
                     log.info( "Err-Suppressed notification failure for entityType='{}'. Application flow will continue.", entityType, error );
                     return Mono.empty( );
                 } ).then( );
-    }
-
-    private String resolveEntityName ( Object data ) {
-        if ( data == null ) {
-            return " ";
-        }
-        Map< String, Object > map = objectMapper.convertValue( data, new TypeReference< LinkedHashMap< String, Object > >( ) {} );
-        if ( map.containsKey( "name" ) && map.get( "name" ) != null ) {
-            return String.valueOf( map.get( "name" ) );
-        }
-        if ( map.containsKey( "barcode" ) && map.get( "barcode" ) != null ) {
-            return String.valueOf( map.get( "barcode" ) );
-        }
-        return " ";
     }
 
     private Object normalizeKeys ( String rawEntityType, Object data ) {

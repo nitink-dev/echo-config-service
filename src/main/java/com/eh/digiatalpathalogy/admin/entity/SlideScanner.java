@@ -26,7 +26,7 @@ public class SlideScanner {
     private String dicomStore;
     @NotBlank
     private String aeTitle;
-    private Integer port;
+    private String port;
     private String hospitalName;
     private String ipAddress;
     private String vendor;
@@ -110,11 +110,11 @@ public class SlideScanner {
         this.aeTitle = aeTitle;
     }
 
-    public Integer getPort() {
+    public String getPort() {
         return port;
     }
 
-    public void setPort(Integer port) {
+    public void setPort(String port) {
         this.port = port;
     }
 

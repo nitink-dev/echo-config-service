@@ -25,6 +25,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -172,7 +173,7 @@ public class SlideScanStatusService {
         if (!signal.hasValue()) {
             final boolean isSynapseQuery = newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_STARTED) || newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_COMPLETED) || newValidEvent.scanStatus().equalsIgnoreCase(SYNAPSE_FAILED);
             if (isSynapseQuery) {
-                log.info("Ignoring synapse event without prior state (barcode={}, status={}, sourceService={})", newValidEvent.slideBarcode(), newValidEvent.scanStatus(), newValidEvent.sourceService());
+                log.debug("Ignoring synapse event without prior state (barcode={}, status={}, sourceService={})", newValidEvent.slideBarcode(), newValidEvent.scanStatus(), newValidEvent.sourceService());
                 return Mono.empty();
             }
             if (!StringUtils.hasText(newValidEvent.seriesId())) {
@@ -205,11 +206,20 @@ public class SlideScanStatusService {
             log.warn("Invalid scan progress event received: slideBarcode is null or blank (sourceService={}, status={})", event.sourceService(), event.scanStatus());
             return Mono.error(new InvalidScanProgressException(barcode, "slideBarcode is null or blank"));
         }
-        if (configStore.getValidScanStatus() == null || !configStore.getValidScanStatus().contains(event.scanStatus())) {
-            log.warn("Invalid scan status received (barcode={}, sourceService={}, status={})", barcode, event.sourceService(), event.scanStatus());
-            return Mono.error(new InvalidScanProgressException(barcode, "Scan service: " + event.sourceService() + " Invalid scan status: " + event.scanStatus()));
-        }
-        return Mono.just(event);
+        return configStore.getValidScanStatuses()
+                .flatMap(validStatuses -> {
+                    if (CollectionUtils.isEmpty(validStatuses)) {
+                        log.warn("Valid scan status configuration is not loaded yet. Scan event processing will be skipped until configuration initialization completes.");
+                        return Mono.error(new InvalidScanProgressException(barcode, "Valid scan status configuration not loaded"));
+                    }
+
+                    if (!validStatuses.contains(event.scanStatus())) {
+                        log.warn("Scan status validation failed (barcode={}, sourceService={}, receivedStatus={}, configuredStatuses={})", barcode, event.sourceService(), event.scanStatus(), validStatuses);
+
+                        return Mono.error(new InvalidScanProgressException(barcode, "Scan service: " + event.sourceService() + " Invalid scan status: " + event.scanStatus()));
+                    }
+                    return Mono.just(event);
+                });
     }
 
     /**
