@@ -20,12 +20,15 @@ form-labels:
       remotePort: Remote Port
       storageStrategy: Storage Strategy
     lis:
+      receivingAppName: Application Name
       applicationName: Application Name
       ipAddress: IP Address
       receivingFacility: Application Facility
       port: Port
+      lisName: LIS Name
       name: LIS Name
     dicomStore:
+      "gcp-config.pathqa-store-url": DICOM Store Address
       dicomStore: DICOM Store Address
     qaSlide:
       barcode: QA Slide Barcode
@@ -34,11 +37,15 @@ form-labels:
       aet: AET
       samIpAddress: SAM Server Address
       port: Port
+      "network-drive": Network Drive
       networkDrive: Network Drive
       serviceIpAddress: IP Address
+      "watcher-active": Enable directory watcher
       watcherActive: Enable directory watcher
     eh-lis-connector:
+      appName: Application Name
       applicationName: Application Name
+      port: Port
       receivingPort: Port
       sendingFacility: Application Facility
       serviceIpAddress: IP Address
@@ -51,7 +58,9 @@ form-labels:
       ibexEnabled: IBEX Enabled
       serviceIpAddress: IP Address
     eh-hl7-connector:
+      appName: Application Name
       applicationName: Application Name
+      "receive-port": Port
       receivingPort: Port
       sendingFacility: Application Facility
       serviceIpAddress: IP Address
@@ -62,9 +71,14 @@ form-labels:
       emailIbexTo: Email for IBEX Slide Analysis Event
     synapse:
       imsName: Name
+      "ims-name": Name
       ipAddress: IP Address
+      "receive-port": Port
+      "synapse-receive-port": Port
       receivingPort: Port
+      synapseServerFolder: Network Folder Location 1
       networkFolder: Network Folder Location 1
-      networkFolder2: Network Folder Location 2
+      synapseServerFolder2: Network Folder Location 2
+      receivingAppName: Application Name
       applicationName: Application Name
       receivingFacility: Application Facility
