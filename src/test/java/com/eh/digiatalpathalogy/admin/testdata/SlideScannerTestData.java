@@ -17,7 +17,7 @@ public class SlideScannerTestData {
         scanner.setDepartment("digital-pathology-dataset");
         scanner.setDicomStore("projects/p1/locations/l1/datasets/d1/dicomStores/store1");
         scanner.setAeTitle("SVS_STORE_SCP");
-        scanner.setPort("1010");
+        scanner.setPort(1010);
         scanner.setHospitalName("Evanston Hospital");
         scanner.setIpAddress("10.0.0.10");
         scanner.setVendor("Acme");
