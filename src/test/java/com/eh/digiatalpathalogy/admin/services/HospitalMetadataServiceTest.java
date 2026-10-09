@@ -13,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.Duration;
 import java.util.List;
 
 import static com.eh.digiatalpathalogy.admin.constant.RedisCacheKey.METADATA_HOSPITAL;
@@ -50,7 +49,7 @@ class HospitalMetadataServiceTest {
 
         verify(redisStore, times(1)).findByKey(anyString(), eq(HospitalMetadataDTO.class));
         verifyNoInteractions(hospitalMetadataRepository);
-        verify(redisStore, never()).save(anyString(), any(),any());
+        verify(redisStore, never()).save(anyString(), any());
     }
 
 
@@ -74,7 +73,7 @@ class HospitalMetadataServiceTest {
 
         when(hospitalMetadataRepository.findByType("hospital_name")).thenReturn(Mono.just(namesDoc));
         when(hospitalMetadataRepository.findByType("hospital_location")).thenReturn(Mono.just(locDoc));
-        when(redisStore.save(anyString(), any(HospitalMetadataDTO.class),any(Duration.class))).thenReturn(Mono.empty());
+        when(redisStore.save(anyString(), any(HospitalMetadataDTO.class))).thenReturn(Mono.empty());
 
         StepVerifier.create(service.getHospitalMetadata())
                 .assertNext(dto -> {
@@ -86,7 +85,7 @@ class HospitalMetadataServiceTest {
         verify(redisStore).findByKey(anyString(), eq(HospitalMetadataDTO.class));
         verify(hospitalMetadataRepository).findByType("hospital_name");
         verify(hospitalMetadataRepository).findByType("hospital_location");
-        verify(redisStore).save(eq(METADATA_HOSPITAL), any(HospitalMetadataDTO.class),eq(Duration.ofHours(24)));
+        verify(redisStore).save(eq(METADATA_HOSPITAL), any(HospitalMetadataDTO.class));
     }
 
     @Test
@@ -109,7 +108,7 @@ class HospitalMetadataServiceTest {
 
         when(hospitalMetadataRepository.findByType("hospital_name")).thenReturn(Mono.just(namesDoc));
         when(hospitalMetadataRepository.findByType("hospital_location")).thenReturn(Mono.just(locDoc));
-        when(redisStore.save(eq(METADATA_HOSPITAL), any(HospitalMetadataDTO.class),any(Duration.class)))
+        when(redisStore.save(eq(METADATA_HOSPITAL), any(HospitalMetadataDTO.class)))
                 .thenReturn(Mono.error(new RuntimeException("Redis down")));
 
         StepVerifier.create(service.getHospitalMetadata())
@@ -119,6 +118,6 @@ class HospitalMetadataServiceTest {
                 })
                 .verifyComplete();
 
-        verify(redisStore).save(anyString(), any(HospitalMetadataDTO.class),eq(Duration.ofHours(24)));
+        verify(redisStore).save(anyString(), any(HospitalMetadataDTO.class));
     }
 }

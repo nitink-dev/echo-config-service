@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -24,8 +23,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.DEFAULT_APPLICATION;
-import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.configByApplication;
+import static com.eh.digiatalpathalogy.admin.constant.ConfigKeys.*;
 import static com.eh.digiatalpathalogy.admin.constant.EnrichmentToolConstant.*;
 import static com.eh.digiatalpathalogy.admin.constant.RedisCacheKey.SERVICE_HOST_INFO;
 import static com.eh.digiatalpathalogy.admin.constant.SlideScanStatusConstant.*;
@@ -435,7 +433,6 @@ public class ConfigStore {
      */
     @PostConstruct
     public void initOnStartup() {
-        validScanStatus = Collections.emptySet();
         refreshAll();
     }
 
@@ -476,20 +473,8 @@ public class ConfigStore {
                 .collect(Collectors.toSet());
     }
 
-    public Mono<Set<String>> getValidScanStatuses() {
-
-        if (!CollectionUtils.isEmpty(validScanStatus)) {
-            return Mono.just(validScanStatus);
-        }
-        return getPropertiesForApplication(EH_EXPORT_SERVICE, toolConfig.getApplications().get(EH_EXPORT_SERVICE))
-                .map(values -> {
-                    boolean ibex = parseBoolean(values.get("ibexEnabled"));
-                    boolean synapse = parseBoolean(values.get("synapseEnabled"));
-                    calculateScanProgressPercent(ibex, synapse);
-                    log.info("Valid scan statuses initialized successfully. Count={}, statuses={}", validScanStatus != null ? validScanStatus.size() : 0, validScanStatus);
-                    return validScanStatus;
-                })
-                .doOnError(ex -> log.error("Failed to initialize valid scan statuses from EH_EXPORT_SERVICE configuration.", ex));
+    public Set<String> getValidScanStatus() {
+        return validScanStatus;
     }
 
     public Mono<Map<String, Object>> getAggregatedConfig(String application) {
@@ -507,8 +492,7 @@ public class ConfigStore {
                                 Map<String, String> mapping = entry.getValue();
                                 return loadConfigCached(targetApp)
                                         .map(cfg -> resolveFromConfig(cfg, mapping))
-                                        .onErrorResume(ex -> {
-                                            log.error("Failed loading aggregated config for {}", targetApp, ex);
+                                        .onErrorResume(ex -> {log.error("Failed loading aggregated config for {}", targetApp, ex);
                                             return Mono.just(Collections.emptyMap());
                                         });
                             })

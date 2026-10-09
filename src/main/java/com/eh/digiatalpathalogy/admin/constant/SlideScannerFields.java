@@ -4,6 +4,8 @@ public final class SlideScannerFields {
     private SlideScannerFields() {
     }
 
+    public static final String ID = "id";
+    public static final String DEVICE_SERIAL_NUMBER = "deviceSerialNumber";
     public static final String NAME = "name";
     public static final String MODEL = "model";
     public static final String SCANNER_TYPE = "scannerType";
