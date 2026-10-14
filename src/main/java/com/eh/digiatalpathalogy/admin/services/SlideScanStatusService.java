@@ -432,7 +432,8 @@ public class SlideScanStatusService {
      * Fetches a slide's scan status by barcode or emits not-found.
      */
     public Mono<SlideScanStatusDto> getSlideScanStatusByBarcode(String barcode) {
-        return slideScanStatusRepository.findBySlideBarcode(barcode)
+        String trimmedBarcode = barcode == null ? "" : barcode.trim();
+        return slideScanStatusRepository.findBySlideBarcodeIgnoreCase(trimmedBarcode)
                 .map(slideScanStatus -> toScanStatusDto(slideScanStatus, false))
                 .doOnSuccess(dto -> {
                     if (dto != null) {

@@ -325,7 +325,7 @@ class SlideScanStatusServiceTest {
     void get_by_barcode_found() {
 
         SlideScanStatus e = slideScanStatusEntity("S902EA1", IN_PROGRESS, 33.0);
-        when(slideScanStatusRepository.findBySlideBarcode("S902EA1")).thenReturn(Mono.just(e));
+        when(slideScanStatusRepository.findBySlideBarcodeIgnoreCase("S902EA1")).thenReturn(Mono.just(e));
 
         StepVerifier.create(service.getSlideScanStatusByBarcode("S902EA1"))
                 .assertNext(dto -> {
@@ -338,7 +338,7 @@ class SlideScanStatusServiceTest {
     @DisplayName("getSlideScanStatusByBarcode: not found -> error")
     void get_by_barcode_not_found() {
 
-        when(slideScanStatusRepository.findBySlideBarcode("S902EA1")).thenReturn(Mono.empty());
+        when(slideScanStatusRepository.findBySlideBarcodeIgnoreCase("S902EA1")).thenReturn(Mono.empty());
         StepVerifier.create(service.getSlideScanStatusByBarcode("S902EA1"))
                 .expectError(ResourceNotFoundException.class)
                 .verify();
