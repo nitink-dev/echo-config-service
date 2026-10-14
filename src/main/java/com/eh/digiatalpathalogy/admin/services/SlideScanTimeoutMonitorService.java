@@ -76,24 +76,24 @@ public class SlideScanTimeoutMonitorService {
         Duration lockTtl = Duration.ofMinutes(slideScanProgressConfig.getTimeout().getLock().getTtlMinutes());
         long timeoutMinutes = slideScanProgressConfig.getTimeout().getMinutes();
         int parallelism = slideScanProgressConfig.getTimeout().getProcessing().getParallelism();
-        log.info("Starting slide scan timeout monitoring job [instanceId={}, timeoutMinutes={}, lockTtl={}m, parallelism={}]", instanceId, timeoutMinutes, lockTtl.toMinutes(), parallelism);
+        log.debug("Starting slide scan timeout monitoring job [instanceId={}, timeoutMinutes={}, lockTtl={}m, parallelism={}]", instanceId, timeoutMinutes, lockTtl.toMinutes(), parallelism);
         redisEntityStore.acquireLock(LOCK_KEY, instanceId, lockTtl)
                 .flatMap(acquired -> {
                     if (!acquired) {
-                        log.info("Skipping timeout monitoring job. Distributed lock is already held by another instance [lockKey={}, instanceId={}]", LOCK_KEY, instanceId);
+                        log.debug("Skipping timeout monitoring job. Distributed lock is already held by another instance [lockKey={}, instanceId={}]", LOCK_KEY, instanceId);
                         return Mono.empty();
                     }
-                    log.info("Lock acquired, starting timeout job");
+                    log.debug("Lock acquired, starting timeout job");
                     long threshold = Instant.now().minus(timeoutMinutes, ChronoUnit.MINUTES).toEpochMilli();
                     return redisEntityStore.getExpired(ACTIVE_SCAN_KEY, threshold)
                             .flatMap(this::processBarcode, parallelism)
                             .then(redisEntityStore.releaseLock(LOCK_KEY, instanceId))
-                            .doOnSuccess(released -> log.info("Slide scan timeout monitoring job completed successfully. Lock released [lockKey={}, released={}, instanceId={}]", LOCK_KEY, released, instanceId))
+                            .doOnSuccess(released -> log.debug("Slide scan timeout monitoring job completed successfully. Lock released [lockKey={}, released={}, instanceId={}]", LOCK_KEY, released, instanceId))
                             .onErrorResume(error -> {
                                 log.error("Unexpected error during timeout processing. Releasing lock [instanceId={}]", instanceId, error);
                                 return redisEntityStore
                                         .releaseLock(LOCK_KEY, instanceId)
-                                        .doOnSuccess(released -> log.info("Lock release attempted after failure [lockKey={}, released={}, instanceId={}]", LOCK_KEY, released, instanceId));
+                                        .doOnSuccess(released -> log.debug("Lock release attempted after failure [lockKey={}, released={}, instanceId={}]", LOCK_KEY, released, instanceId));
                             });
                 })
                 .onErrorResume(e -> {

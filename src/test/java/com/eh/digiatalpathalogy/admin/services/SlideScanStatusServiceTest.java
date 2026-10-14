@@ -32,6 +32,7 @@ import reactor.test.StepVerifier;
 import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import static com.eh.digiatalpathalogy.admin.constant.RedisCacheKey.SLIDE_SCAN_STATUS_PREFIX;
 import static com.eh.digiatalpathalogy.admin.constant.SlideScanStatusConstant.*;
@@ -59,6 +60,7 @@ class SlideScanStatusServiceTest {
     private ConfigStore configStore;
     @InjectMocks
     private SlideScanStatusService service;
+    private final Set<String> validScanStatues = Set.of("exported", "ibex-classification-failed", "synapse-exported", "ibex-slide-download-failed", "timeout-warning-completed", "failed", "export-in-progress", "enrichment-in-progress", "dicom-enriched-failed", "synapse-started", "synapse-failed", "synapse-completed", "ibex-invalid-slide", "ibex-slide-creation-failed", "ibex-slide-download-completed", "synapse-export-failed", "ibex-invalid-data", "export-failed", "ibex-warning-completed", "ibex-files-download-failed", "enrichment-completed", "ibex-classification-finished");
 
 
     @Test
@@ -152,6 +154,11 @@ class SlideScanStatusServiceTest {
     @DisplayName("validateEvent: status not allowed -> error")
     void streamSlideScanStatus_invalid_status_error() {
         SlideScanProgressEvent invalidSseEvent = invalidSseEvent("S902EA1");
+        when(redisEntityStore.findByKey(
+                anyString(),
+                eq(SlideScanProgressEvent.class)))
+                .thenReturn(Mono.empty());
+        when(configStore.getValidScanStatuses()).thenReturn(Mono.just(Set.of("started")));
         StepVerifier.create(invoke_streamSlideScanStatus(invalidSseEvent))
                 .expectError(InvalidScanProgressException.class)
                 .verify();
@@ -161,7 +168,7 @@ class SlideScanStatusServiceTest {
     @DisplayName("upsert: no previous + normal status -> save, publish, cache non-terminal")
     void streamSlideScanStatus_upsert_publish_cache() {
 
-        when(configStore.getValidScanStatus()).thenReturn(validScanStatus());
+//        when(configStore.getValidScanStatus()).thenReturn(validScanStatus());
         when(slideScanProgressConfig.getServices()).thenReturn(slideScanConfiguration());
         when(redisEntityStore.findByKey(anyString(), eq(SlideScanProgressEvent.class))).thenReturn(Mono.empty());
         when(slideScanStatusRepository.findBySlideBarcode("S902EA1")).thenReturn(Mono.empty());
@@ -173,6 +180,7 @@ class SlideScanStatusServiceTest {
                 .thenReturn(Mono.just(entity));
 
         when(redisEntityStore.save(anyString(), any(SlideScanProgressEvent.class))).thenReturn(Mono.empty());
+        when(configStore.getValidScanStatuses()).thenReturn(Mono.just(validScanStatues));
         when(redisEntityStore.add(anyString(), anyString(), anyDouble())).thenReturn(Mono.empty());
 
         StepVerifier.create(invoke_streamSlideScanStatus(sseEvent))
@@ -185,10 +193,11 @@ class SlideScanStatusServiceTest {
     @Test
     @DisplayName("processEvent: previous present + double event -> ignored")
     void streamSlideScanStatus_double_event_ignored() {
-        when(configStore.getValidScanStatus()).thenReturn(validScanStatus());
+//        when(configStore.getValidScanStatus()).thenReturn(validScanStatus());
 
         LinkedHashSet<ScanStatus> prevEvents = new LinkedHashSet<>(List.of(new ScanStatus("scan-event", "exported", null)));
         SlideScanProgressEvent prev = sseEnrichmentInProgressWithParameter("S902EA1", "exported", "eh-dp-export-service", 80.0, prevEvents);
+        when(configStore.getValidScanStatuses()).thenReturn(Mono.just(validScanStatues));
         when(redisEntityStore.findByKey(anyString(), eq(SlideScanProgressEvent.class)))
                 .thenReturn(Mono.just(prev));
 
