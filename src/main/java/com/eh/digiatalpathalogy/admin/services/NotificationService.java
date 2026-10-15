@@ -42,7 +42,14 @@ public class NotificationService {
         final String TEMPLATE_KEY = newData == null ? "ENTITY_DELETE_DEFAULT" : oldData == null ? "ENTITY_CREATE_DEFAULT" : "ENTITY_CHANGE_DEFAULT";
         log.info( "Resolved template key='{}' for entityType='{}'. Operation={}", TEMPLATE_KEY, entityType, newData == null ? "DELETE" : oldData == null ? "CREATE" : "UPDATE" );
 
-        String entityName = resolveEntityName( newData != null ? newData : oldData );
+        // newData is often a partial PATCH payload (enrichment-tool apps only send changed fields), so
+        // if the identifying field itself wasn't part of this change, fall back to oldData - this also
+        // naturally covers DELETE, where newData is null.
+        String entityName = resolveEntityName( newData );
+        if ( " ".equals( entityName ) ) {
+            entityName = resolveEntityName( oldData );
+        }
+        log.info( "Resolved entityName='{}' for entityType='{}'", entityName, entityType );
         Object normalizedOldData = normalizeKeys( rawEntityType, oldData );
         Object normalizedNewData = normalizeKeys( rawEntityType, newData );
 
@@ -73,16 +80,23 @@ public class NotificationService {
                 } ).then( );
     }
 
+    // Candidate identifying fields across entity types, checked in order. "name"/"barcode" cover
+    // scanner/qaSlide (real entity objects); the rest are the raw wire keys for the enrichment-tool
+    // apps that have a human-identifiable name but no "name" field: lis -> lisName, synapse -> ims-name,
+    // eh-lis-connector/eh-hl7-connector -> appName.
+    private static final java.util.List< String > ENTITY_NAME_CANDIDATE_FIELDS = java.util.List.of(
+            "name", "barcode", "lisName", "ims-name", "appName"
+    );
+
     private String resolveEntityName ( Object data ) {
         if ( data == null ) {
             return " ";
         }
         Map< String, Object > map = objectMapper.convertValue( data, new TypeReference< LinkedHashMap< String, Object > >( ) {} );
-        if ( map.containsKey( "name" ) && map.get( "name" ) != null ) {
-            return String.valueOf( map.get( "name" ) );
-        }
-        if ( map.containsKey( "barcode" ) && map.get( "barcode" ) != null ) {
-            return String.valueOf( map.get( "barcode" ) );
+        for ( String field : ENTITY_NAME_CANDIDATE_FIELDS ) {
+            if ( map.containsKey( field ) && map.get( field ) != null ) {
+                return String.valueOf( map.get( field ) );
+            }
         }
         return " ";
     }
