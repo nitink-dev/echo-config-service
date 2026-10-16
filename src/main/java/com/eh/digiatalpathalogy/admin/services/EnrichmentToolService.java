@@ -42,13 +42,13 @@ public class EnrichmentToolService {
     private Map<String, Map<String, Object>> prepareUpdateRequestPayload(EnrichmentToolConfig.AppMapping appMapping, Map<String, Object> payload) {
         return appMapping.getMappings().entrySet().stream()
                 .map(categoryEntry -> {
-                    Map<String, Object> inner = categoryEntry.getValue().entrySet().stream()
+                    // Built via a plain LinkedHashMap + put(), not Collectors.toMap(..., mergeFunction, ...):
+                    // that overload accumulates with Map.merge(), which throws NPE outright when the value
+                    // is null - and null is a legitimate value here (e.g. clearing a port field sends null).
+                    Map<String, Object> inner = new LinkedHashMap<>();
+                    categoryEntry.getValue().entrySet().stream()
                             .filter(mappingEntry -> payload.containsKey(mappingEntry.getKey()))
-                            .collect(Collectors.toMap(Map.Entry::getValue,
-                                    mappingEntry -> handleDataType(mappingEntry.getKey(), payload.get(mappingEntry.getKey())),
-                                    (a, b) -> b,
-                                    LinkedHashMap::new
-                            ));
+                            .forEach(mappingEntry -> inner.put(mappingEntry.getValue(), handleDataType(mappingEntry.getKey(), payload.get(mappingEntry.getKey()))));
                     return new AbstractMap.SimpleEntry<>(categoryEntry.getKey(), inner);
                 })
                 .filter(e -> !e.getValue().isEmpty())
@@ -59,7 +59,7 @@ public class EnrichmentToolService {
      * Converts list/array fields into comma-separated string where required.
      */
     private Object handleDataType(String key, Object value) {
-        if (ARRAY_FIELDS.contains(key)) {
+        if (value != null && ARRAY_FIELDS.contains(key)) {
             if (value instanceof List<?>) {
                 return ((List<?>) value).stream()
                         .map(String::valueOf)

@@ -141,6 +141,26 @@ class EnrichmentToolServiceTest {
     }
 
     @Test
+    @DisplayName("updateAppConfig: generic app → null field value (e.g. clearing port) does not throw")
+    void updateAppConfig_genericApp_nullFieldValue_doesNotThrow() {
+
+        when(configStore.getFilteredProperties("eh-dicom-receiver"))
+                .thenReturn(Mono.just(Map.of()));
+
+        when(configurationClient.updateConfig(eq("eh-dicom-receiver"), isNull(), any()))
+                .thenReturn(Mono.just(Map.of()));
+        when(configStore.deleteAllConfigKeys()).thenReturn(Mono.empty());
+        when(notificationService.notifyEntityChange(anyString(), anyMap(), anyMap())).thenReturn(Mono.empty());
+
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("port", null);
+
+        StepVerifier.create(service.updateAppConfig("eh-dicom-receiver", payload))
+                .expectNextCount(1)
+                .verifyComplete();
+    }
+
+    @Test
     @DisplayName("updateAppConfig: generic app → empty payload results in empty response")
     void updateAppConfig_genericApp_emptyPayload() {
 
