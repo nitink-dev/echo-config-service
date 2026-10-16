@@ -325,7 +325,7 @@ class SlideScanStatusServiceTest {
     void get_by_barcode_found() {
 
         SlideScanStatus e = slideScanStatusEntity("S902EA1", IN_PROGRESS, 33.0);
-        when(slideScanStatusRepository.findBySlideBarcodeIgnoreCase("S902EA1")).thenReturn(Mono.just(e));
+        when(slideScanStatusRepository.findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase("S902EA1", "S902EA1")).thenReturn(Mono.just(e));
 
         StepVerifier.create(service.getSlideScanStatusByBarcode("S902EA1"))
                 .assertNext(dto -> {
@@ -335,10 +335,22 @@ class SlideScanStatusServiceTest {
     }
 
     @Test
+    @DisplayName("getSlideScanStatusByBarcode: search term matches accession number, not barcode -> still found")
+    void get_by_barcode_matchesByAccessionNumber_found() {
+
+        SlideScanStatus e = slideScanStatusEntity("S902EA1", IN_PROGRESS, 33.0);
+        when(slideScanStatusRepository.findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase("ACC-100", "ACC-100")).thenReturn(Mono.just(e));
+
+        StepVerifier.create(service.getSlideScanStatusByBarcode("ACC-100"))
+                .assertNext(dto -> assertEquals("S902EA1", dto.slideBarcode()))
+                .verifyComplete();
+    }
+
+    @Test
     @DisplayName("getSlideScanStatusByBarcode: not found -> error")
     void get_by_barcode_not_found() {
 
-        when(slideScanStatusRepository.findBySlideBarcodeIgnoreCase("S902EA1")).thenReturn(Mono.empty());
+        when(slideScanStatusRepository.findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase("S902EA1", "S902EA1")).thenReturn(Mono.empty());
         StepVerifier.create(service.getSlideScanStatusByBarcode("S902EA1"))
                 .expectError(ResourceNotFoundException.class)
                 .verify();

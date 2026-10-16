@@ -432,17 +432,19 @@ public class SlideScanStatusService {
      * Fetches a slide's scan status by barcode or emits not-found.
      */
     public Mono<SlideScanStatusDto> getSlideScanStatusByBarcode(String barcode) {
-        String trimmedBarcode = barcode == null ? "" : barcode.trim();
-        return slideScanStatusRepository.findBySlideBarcodeIgnoreCase(trimmedBarcode)
+        String trimmed = barcode == null ? "" : barcode.trim();
+        // Matches on either the slide barcode or the accession number, so the one search box
+        // can look a record up by whichever identifier the user has on hand.
+        return slideScanStatusRepository.findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase(trimmed, trimmed)
                 .map(slideScanStatus -> toScanStatusDto(slideScanStatus, false))
                 .doOnSuccess(dto -> {
                     if (dto != null) {
-                        log.info("Slide scan status found (barcode={}, status={}, progress={})", dto.slideBarcode(), dto.scanStatus(), dto.progressPercent());
+                        log.info("Slide scan status found (searchTerm={}, status={}, progress={})", dto.slideBarcode(), dto.scanStatus(), dto.progressPercent());
                     }
                 })
                 .switchIfEmpty(Mono.defer(() -> {
-                    log.warn("Slide scan report not found (barcode={})", barcode);
-                    return Mono.error(new ResourceNotFoundException("Slide scan report not found with barcode: " + barcode));
+                    log.warn("Slide scan report not found (searchTerm={})", barcode);
+                    return Mono.error(new ResourceNotFoundException("Slide scan report not found with barcode or accession number: " + barcode));
                 }));
     }
 
