@@ -14,11 +14,9 @@ spec:
         app: pathqa-svc
     spec:
       serviceAccountName: pathqasvc-sa
-      nodeSelector:
-        cloud.google.com/gke-nodepool: eh-qa-io-perf-node-pool-2
       containers:
         - name: pathqa-svc
-          image: us-central1-docker.pkg.dev/prj-d-dp/path-qa-service/sierra-dicom-analyser:20250912.1
+          image: PATHQA_IMAGE
           ports:
             - containerPort: 8080
           resources:

@@ -25,9 +25,7 @@ public interface SlideScanStatusRepository extends ReactiveMongoRepository<Slide
 
     Mono<SlideScanStatus> findBySlideBarcode(String slideBarcode);
 
-    Mono<SlideScanStatus> findBySlideBarcodeIgnoreCase(String slideBarcode);
-
-    Mono<SlideScanStatus> findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase(String slideBarcode, String accessionNumber);
+    Mono<SlideScanStatus> findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase(String record);
 
     @Aggregation(pipeline = {
             "{ $group: { _id: '$slideBarcode' } }",

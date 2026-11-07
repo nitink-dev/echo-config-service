@@ -1,0 +1,13 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: admin-svc-jvm-metrics
+  namespace: adminsvc-ns
+spec:
+  selector:
+    matchLabels:
+      app: "admin-svc"
+  endpoints:
+    - port: 8097
+      path: /actuator/prometheus
+      interval: 30s

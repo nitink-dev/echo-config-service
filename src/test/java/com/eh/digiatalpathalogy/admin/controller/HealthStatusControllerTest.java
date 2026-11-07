@@ -22,45 +22,6 @@ import static org.mockito.Mockito.*;
 
 @WebFluxControllerTest(controllers = HealthStatusController.class)
 class HealthStatusControllerTest {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     @Autowired
     private WebTestClient webTestClient;
 
@@ -282,7 +243,6 @@ class HealthStatusControllerTest {
         return t;
     }
 }
-
 
 
 

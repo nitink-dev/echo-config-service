@@ -25,7 +25,6 @@ tools:
           sendingFacility: message.config.sending-facility
         native:
           receive-port: tcp.incoming.port
-          receivingFacility: message.config.receiving-facility
     eh-export-service:
       mappings:
         native:

@@ -35,7 +35,6 @@ spring:
       - optional:file:config/health-targets.yml
       - optional:file:config/security-config.yml
       - optional:file:config/slide-scan-config.yml
-      - optional:file:config/form-labels.yml
     uri: http://10.201.8.192:8888
 
   kafka:
@@ -77,7 +76,7 @@ spring:
 
 kafka:
   topic:
-      qa-slide: pathqa-svc-topic
+      pathqa: pathqa-svc-topic
       scan-progress: scan-progress-topic
 
 path:

@@ -10,13 +10,11 @@ import com.eh.digiatalpathalogy.admin.model.scanstatus.TimeoutDecision;
 import com.eh.digiatalpathalogy.admin.repository.DicomInstanceRepository;
 import com.eh.digiatalpathalogy.admin.repository.SlideScanStatusRepository;
 import com.eh.digiatalpathalogy.admin.util.RedisEntityStore;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -62,10 +60,6 @@ public class SlideScanTimeoutMonitorService {
      * Periodically scans active slide processes and triggers timeout handling
      * using distributed locking to ensure single-instance execution.
      */
-    @Scheduled(
-            fixedDelayString = "#{@slideScanProgressConfig.getTimeout().getCheck().getInterval() * 60000}",
-            initialDelayString = "#{@slideScanProgressConfig.getTimeout().getCheck().getInitialDelay() * 60000}"
-    )
     public void monitorTimeoutScans() {
 
         if (slideScanProgressConfig.getTimeout() == null || !slideScanProgressConfig.getTimeout().isEnabled()) {
@@ -83,7 +77,7 @@ public class SlideScanTimeoutMonitorService {
                         log.debug("Skipping timeout monitoring job. Distributed lock is already held by another instance [lockKey={}, instanceId={}]", LOCK_KEY, instanceId);
                         return Mono.empty();
                     }
-                    log.debug("Lock acquired, starting timeout job");
+                    log.info("Lock acquired, starting timeout job");
                     long threshold = Instant.now().minus(timeoutMinutes, ChronoUnit.MINUTES).toEpochMilli();
                     return redisEntityStore.getExpired(ACTIVE_SCAN_KEY, threshold)
                             .flatMap(this::processBarcode, parallelism)
@@ -214,22 +208,5 @@ public class SlideScanTimeoutMonitorService {
     private SlideScanProgressEvent toEvent(SlideScanStatus s) {
         return new SlideScanProgressEvent(s.getAccessionNumber(), s.getSlideBarcode(), s.getSeriesId(), s.getDeviceSerialNumber(), s.getScanStatus(), null, s.getProgressPercent(), s.getProgressEvents(), null, null);
     }
-
-
-    @PostConstruct
-    public void logTimeoutConfig() {
-        if (slideScanProgressConfig.getTimeout() != null) {
-            log.info(
-                    "SlideScanTimeoutMonitor initialized [enabled={}, timeout={}m, interval={}m, parallelism={}]",
-                    slideScanProgressConfig.getTimeout().isEnabled(),
-                    slideScanProgressConfig.getTimeout().getMinutes(),
-                    slideScanProgressConfig.getTimeout().getCheck().getInterval(),
-                    slideScanProgressConfig.getTimeout().getProcessing().getParallelism()
-            );
-        }else {
-            log.error("SlideScanTimeoutMonitorService initialization failed. Timeout configuration is missing or not loaded from application properties.");
-        }
-    }
-
 
 }

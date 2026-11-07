@@ -14,8 +14,6 @@ spec:
         app: admin-svc
     spec:
       serviceAccountName: adminsvc-sa
-      nodeSelector:
-        cloud.google.com/gke-nodepool: eh-qa-io-perf-node-pool-2
       containers:
         - name: admin-svc
           image: IMAGE_PATH:__IMAGE_TAG__
@@ -24,17 +22,15 @@ spec:
           resources:
             requests:
               cpu: 750m
-              memory: 750Mi
+              memory: 2Gi
             limits:
               cpu: 1500m
-              memory: 1.5Gi
-          env:
-            - name: KAFKA_BOOTSTRAP_SERVERS
-              value: bootstrap.eh-qa-kafka-cluster.us-central1.managedkafka.prj-d-dp.cloud.goog:9092
-            - name: KAFKA_SECURITY_PROTOCOL
-              value: "SASL_SSL"
-            - name: CONFIG_SERVER_URL
-              value: "http://configserver-svc.configserver-ns.svc.gke:8888"
+              memory: 4Gi
+
+          envFrom:
+            - configMapRef:
+                name: app-config
+
           volumeMounts:
             - name: tmp
               mountPath: /tmp

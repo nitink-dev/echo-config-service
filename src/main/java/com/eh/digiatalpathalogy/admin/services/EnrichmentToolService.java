@@ -36,15 +36,11 @@ public class EnrichmentToolService {
         this.notificationService = notificationService;
     }
 
-    /**
-     * Converts logical payload into category-wise (git/common) config update structure.
-     */
+    // Converts logical payload into category-wise (git/common) config update structure.
+
     private Map<String, Map<String, Object>> prepareUpdateRequestPayload(EnrichmentToolConfig.AppMapping appMapping, Map<String, Object> payload) {
         return appMapping.getMappings().entrySet().stream()
                 .map(categoryEntry -> {
-                    // Built via a plain LinkedHashMap + put(), not Collectors.toMap(..., mergeFunction, ...):
-                    // that overload accumulates with Map.merge(), which throws NPE outright when the value
-                    // is null - and null is a legitimate value here (e.g. clearing a port field sends null).
                     Map<String, Object> inner = new LinkedHashMap<>();
                     categoryEntry.getValue().entrySet().stream()
                             .filter(mappingEntry -> payload.containsKey(mappingEntry.getKey()))

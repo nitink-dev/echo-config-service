@@ -17,6 +17,12 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -37,4 +43,10 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
 

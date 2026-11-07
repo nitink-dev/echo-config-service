@@ -433,9 +433,7 @@ public class SlideScanStatusService {
      */
     public Mono<SlideScanStatusDto> getSlideScanStatusByBarcode(String barcode) {
         String trimmed = barcode == null ? "" : barcode.trim();
-        // Matches on either the slide barcode or the accession number, so the one search box
-        // can look a record up by whichever identifier the user has on hand.
-        return slideScanStatusRepository.findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase(trimmed, trimmed)
+        return slideScanStatusRepository.findBySlideBarcodeIgnoreCaseOrAccessionNumberIgnoreCase(trimmed)
                 .map(slideScanStatus -> toScanStatusDto(slideScanStatus, false))
                 .doOnSuccess(dto -> {
                     if (dto != null) {
