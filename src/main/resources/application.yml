@@ -21,6 +21,10 @@ spring:
   main:
     web-application-type: reactive
 
+ibex:
+  base-url: ${IBEX_BASE_URL:https://endeavor-internal.ibex-ai.com}
+  api-key: ${IBEX_API_KEY:}
+
 management:
   endpoints:
     web:

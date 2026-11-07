@@ -1,6 +1,7 @@
 package com.eh.digiatalpathalogy.admin.controller;
 
 import com.eh.digiatalpathalogy.admin.model.PageResponse;
+import com.eh.digiatalpathalogy.admin.model.ibex.IbexCaseResponse;
 import com.eh.digiatalpathalogy.admin.model.scanstatus.DicomInstanceDto;
 import com.eh.digiatalpathalogy.admin.model.scanstatus.SlideScanStatusDto;
 import com.eh.digiatalpathalogy.admin.services.SlideScanStatusService;
@@ -46,6 +47,11 @@ public class SlideScanStatusController {
     @GetMapping("/barcode/{barcode}/details")
     public Flux<DicomInstanceDto> getDicomInstancesByBarcode(@PathVariable @NotBlank String barcode, @RequestParam @NotBlank String seriesId) {
         return service.getDicomInstancesByBarcode(barcode,seriesId);
+    }
+
+    @GetMapping("/barcode/{barcode}/ibex-url")
+    public Mono<IbexCaseResponse> getIbexUrl(@PathVariable @NotBlank String barcode, @RequestParam @NotBlank String seriesId) {
+        return service.getIbexUrl(barcode, seriesId);
     }
 
     @GetMapping("/barcodes")
