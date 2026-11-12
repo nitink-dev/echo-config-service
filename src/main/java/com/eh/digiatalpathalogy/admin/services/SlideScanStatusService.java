@@ -73,19 +73,11 @@ public class SlideScanStatusService {
         this.ibexClient = ibexClient;
     }
 
-    public Mono<IbexCaseResponse> getIbexUrl(String barcode, String seriesId) {
-        return dicomInstanceRepository.findAllByBarcodeAndSeriesInstanceUid(barcode, seriesId)
-                .next()
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException(
-                        "No DICOM instance found for barcode=" + barcode + ", seriesId=" + seriesId)))
-                .flatMap(instance -> {
-                    String caseNumber = instance.getCaseNumber();
-                    if (!StringUtils.hasText(caseNumber)) {
-                        return Mono.error(new ResourceNotFoundException(
-                                "No Ibex case number available for barcode=" + barcode + ", seriesId=" + seriesId));
-                    }
-                    return ibexClient.getCase(caseNumber);
-                });
+    public Mono<IbexCaseResponse> getIbexUrl(String accessionNumber) {
+        if (!StringUtils.hasText(accessionNumber)) {
+            return Mono.error(new ResourceNotFoundException("No accession number provided"));
+        }
+        return ibexClient.getCase(accessionNumber);
     }
 
     /**

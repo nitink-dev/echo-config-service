@@ -49,9 +49,9 @@ public class SlideScanStatusController {
         return service.getDicomInstancesByBarcode(barcode,seriesId);
     }
 
-    @GetMapping("/barcode/{barcode}/ibex-url")
-    public Mono<IbexCaseResponse> getIbexUrl(@PathVariable @NotBlank String barcode, @RequestParam @NotBlank String seriesId) {
-        return service.getIbexUrl(barcode, seriesId);
+    @GetMapping("/accession/{accessionNumber}/ibex-url")
+    public Mono<IbexCaseResponse> getIbexUrl(@PathVariable @NotBlank String accessionNumber) {
+        return service.getIbexUrl(accessionNumber);
     }
 
     @GetMapping("/barcodes")
