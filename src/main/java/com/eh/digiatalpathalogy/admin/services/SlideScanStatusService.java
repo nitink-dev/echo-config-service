@@ -1,6 +1,5 @@
 package com.eh.digiatalpathalogy.admin.services;
 
-import com.eh.digiatalpathalogy.admin.client.IbexClient;
 import com.eh.digiatalpathalogy.admin.config.ConfigStore;
 import com.eh.digiatalpathalogy.admin.config.SlideScanProgressConfig;
 import com.eh.digiatalpathalogy.admin.config.SlideScanStatusStream;
@@ -8,7 +7,6 @@ import com.eh.digiatalpathalogy.admin.entity.SlideScanStatus;
 import com.eh.digiatalpathalogy.admin.exception.InvalidScanProgressException;
 import com.eh.digiatalpathalogy.admin.exception.ResourceNotFoundException;
 import com.eh.digiatalpathalogy.admin.model.PageResponse;
-import com.eh.digiatalpathalogy.admin.model.ibex.IbexCaseResponse;
 import com.eh.digiatalpathalogy.admin.model.scanstatus.DicomInstanceDto;
 import com.eh.digiatalpathalogy.admin.model.scanstatus.ScanStatus;
 import com.eh.digiatalpathalogy.admin.model.scanstatus.SlideScanProgressEvent;
@@ -61,23 +59,14 @@ public class SlideScanStatusService {
     private final DicomInstanceRepository dicomInstanceRepository;
     private final RedisEntityStore redisEntityStore;
     private final ConfigStore configStore;
-    private final IbexClient ibexClient;
 
-    public SlideScanStatusService(SlideScanStatusRepository slideScanStatusRepository, SlideScanStatusStream statusStream, SlideScanProgressConfig slideScanProgressConfig, DicomInstanceRepository dicomInstanceRepository, RedisEntityStore redisEntityStore, ConfigStore configStore, IbexClient ibexClient) {
+    public SlideScanStatusService(SlideScanStatusRepository slideScanStatusRepository, SlideScanStatusStream statusStream, SlideScanProgressConfig slideScanProgressConfig, DicomInstanceRepository dicomInstanceRepository, RedisEntityStore redisEntityStore, ConfigStore configStore) {
         this.slideScanStatusRepository = slideScanStatusRepository;
         this.statusStream = statusStream;
         this.slideScanProgressConfig = slideScanProgressConfig;
         this.dicomInstanceRepository = dicomInstanceRepository;
         this.redisEntityStore = redisEntityStore;
         this.configStore = configStore;
-        this.ibexClient = ibexClient;
-    }
-
-    public Mono<IbexCaseResponse> getIbexUrl(String accessionNumber) {
-        if (!StringUtils.hasText(accessionNumber)) {
-            return Mono.error(new ResourceNotFoundException("No accession number provided"));
-        }
-        return ibexClient.getCase(accessionNumber);
     }
 
     /**
